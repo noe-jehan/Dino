@@ -1,0 +1,244 @@
+:root {
+  --jungle-950: #0b1a12;
+  --jungle-900: #10241a;
+  --jungle-800: #17331f;
+  --jungle-700: #234a2c;
+  --amber: #f0a500;
+  --amber-light: #ffcc4d;
+  --paper: #f4ecd8;
+  --ink: #1b1608;
+  --danger: #c0392b;
+  --hp-full: #4caf50;
+  --hp-mid: #f1c40f;
+  --hp-low: #e74c3c;
+
+  --type-carnivore: #c0392b;
+  --type-herbivore: #2e8b57;
+  --type-pterosaur: #2980b9;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  color: var(--paper);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(240, 165, 0, 0.08), transparent 40%),
+    linear-gradient(180deg, var(--jungle-950), var(--jungle-900) 60%, var(--jungle-800));
+  background-attachment: fixed;
+}
+
+#app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+
+.screen { display: none; }
+.screen.active { display: block; animation: fade-in .25s ease; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+h1, h2, h3 { font-family: 'Georgia', serif; margin: 0 0 8px; }
+
+/* ---------- Title screen ---------- */
+.title-card {
+  margin-top: 12vh;
+  text-align: center;
+  border: 2px solid var(--amber);
+  border-radius: 16px;
+  padding: 48px 24px;
+  background: rgba(11, 26, 18, 0.6);
+  box-shadow: 0 0 40px rgba(240, 165, 0, 0.15) inset;
+}
+
+.eyebrow {
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: var(--amber-light);
+  margin-bottom: 12px;
+}
+
+.title-card h1 {
+  font-size: clamp(2.2rem, 6vw, 3.4rem);
+  letter-spacing: 4px;
+  color: var(--paper);
+}
+
+.title-card h1 span { color: var(--amber); }
+
+.tagline {
+  max-width: 480px;
+  margin: 16px auto 28px;
+  color: #cfd8c9;
+}
+
+.subtitle { color: #cfd8c9; margin-bottom: 20px; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 22px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform .1s ease, filter .15s ease;
+  margin: 4px;
+}
+.btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.btn-primary { background: var(--amber); color: var(--ink); }
+.btn-secondary { background: var(--jungle-700); color: var(--paper); border: 1px solid var(--amber); }
+.btn-action { background: var(--jungle-700); color: var(--paper); border: 1px solid var(--amber-light); min-width: 140px; }
+.btn-danger { background: var(--danger); color: var(--paper); margin-top: 24px; }
+
+/* ---------- Home screen ---------- */
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.resource {
+  background: var(--jungle-800);
+  border: 1px solid var(--amber);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.log-box {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--jungle-700);
+  border-radius: 10px;
+  padding: 10px 14px;
+  min-height: 60px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.log-box p { margin: 2px 0; }
+.log-box p:last-child { color: var(--amber-light); font-weight: bold; }
+
+/* ---------- Dino cards ---------- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.dino-card {
+  background: var(--jungle-800);
+  border: 2px solid var(--jungle-700);
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .15s ease, transform .1s ease;
+}
+.dino-card:hover { border-color: var(--amber); transform: translateY(-2px); }
+.dino-card.selected { border-color: var(--amber); box-shadow: 0 0 12px rgba(240,165,0,0.4); }
+.dino-card.non-interactive { cursor: default; }
+.dino-card.non-interactive:hover { transform: none; }
+.dino-card.fainted { opacity: 0.5; filter: grayscale(0.6); }
+
+.dino-emoji { font-size: 2.6rem; }
+
+.dino-name { font-weight: bold; margin: 6px 0 2px; }
+
+.type-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.type-badge.carnivore { background: var(--type-carnivore); }
+.type-badge.herbivore { background: var(--type-herbivore); }
+.type-badge.pterosaur { background: var(--type-pterosaur); }
+
+.dino-level { font-size: 0.8rem; color: #cfd8c9; margin-bottom: 6px; }
+
+.hp-bar-track {
+  background: rgba(0,0,0,0.4);
+  border-radius: 8px;
+  height: 10px;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+.hp-bar-fill { height: 100%; background: var(--hp-full); transition: width .3s ease; }
+.hp-bar-fill.mid { background: var(--hp-mid); }
+.hp-bar-fill.low { background: var(--hp-low); }
+
+.hp-text { font-size: 0.75rem; color: #cfd8c9; }
+
+.dino-stats { font-size: 0.75rem; color: #a9b8a2; margin-top: 6px; }
+
+/* ---------- Active dino panel (home) ---------- */
+.panel {
+  background: var(--jungle-800);
+  border: 1px solid var(--jungle-700);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+/* ---------- Battle screen ---------- */
+.battlefield {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.combatant {
+  background: var(--jungle-800);
+  border: 2px solid var(--jungle-700);
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.combatant-wild { border-color: var(--type-carnivore); align-self: flex-start; width: 80%; }
+.combatant-player { border-color: var(--amber); align-self: flex-end; width: 80%; }
+
+.combatant .dino-emoji { font-size: 2.4rem; }
+.combatant-info { flex: 1; text-align: left; }
+
+.battle-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.battle-actions[hidden] { display: none; }
+
+.move-btn, .switch-btn { text-align: left; }
+.move-btn small, .switch-btn small { display: block; font-weight: normal; opacity: 0.8; }
+
+@media (max-width: 560px) {
+  .combatant-wild, .combatant-player { width: 100%; }
+}

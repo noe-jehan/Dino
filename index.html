@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jurassic Tamers</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ÉCRAN TITRE -->
+    <section id="screen-title" class="screen active">
+      <div class="title-card">
+        <p class="eyebrow">InGen Field Research Program</p>
+        <h1>JURASSIC <span>TAMERS</span></h1>
+        <p class="tagline">Explorez l'île. Capturez des dinosaures. Devenez le plus grand dresseur préhistorique.</p>
+        <button id="btn-new-game" class="btn btn-primary">Nouvelle expédition</button>
+        <button id="btn-continue" class="btn btn-secondary" hidden>Continuer l'expédition</button>
+      </div>
+    </section>
+
+    <!-- ÉCRAN CHOIX DU STARTER -->
+    <section id="screen-starter" class="screen">
+      <h2>Choisissez votre premier dinosaure</h2>
+      <p class="subtitle">Ce compagnon vous accompagnera dès votre arrivée sur l'île.</p>
+      <div id="starter-list" class="card-grid"></div>
+    </section>
+
+    <!-- ÉCRAN PRINCIPAL (CAMP DE BASE) -->
+    <section id="screen-home" class="screen">
+      <header class="home-header">
+        <h2>Camp de base</h2>
+        <div class="resource">
+          <span class="resource-icon">💉</span>
+          <span id="tranq-count">0</span> fléchettes tranquillisantes
+        </div>
+      </header>
+
+      <div id="active-dino-panel" class="panel"></div>
+
+      <div class="home-actions">
+        <button id="btn-explore" class="btn btn-primary">🌴 Explorer l'île</button>
+        <button id="btn-heal" class="btn btn-secondary">🏕️ Soigner l'équipe</button>
+        <button id="btn-team" class="btn btn-secondary">📋 Gérer l'équipe</button>
+      </div>
+
+      <div id="home-log" class="log-box"></div>
+    </section>
+
+    <!-- ÉCRAN COMBAT -->
+    <section id="screen-battle" class="screen">
+      <div class="battlefield">
+        <div id="wild-dino-panel" class="combatant combatant-wild"></div>
+        <div id="player-dino-panel" class="combatant combatant-player"></div>
+      </div>
+
+      <div id="battle-log" class="log-box battle-log"></div>
+
+      <div id="battle-menu" class="battle-menu">
+        <div id="battle-main-actions" class="battle-actions">
+          <button id="btn-fight" class="btn btn-action">⚔️ Attaquer</button>
+          <button id="btn-tranq" class="btn btn-action">💉 Fléchette</button>
+          <button id="btn-switch" class="btn btn-action">🔁 Changer</button>
+          <button id="btn-run" class="btn btn-action">🏃 Fuir</button>
+        </div>
+        <div id="battle-move-actions" class="battle-actions" hidden></div>
+        <div id="battle-switch-actions" class="battle-actions" hidden></div>
+      </div>
+    </section>
+
+    <!-- ÉCRAN ÉQUIPE -->
+    <section id="screen-team" class="screen">
+      <header class="home-header">
+        <h2>Votre équipe</h2>
+        <button id="btn-team-back" class="btn btn-secondary">← Retour au camp</button>
+      </header>
+      <div id="team-list" class="card-grid"></div>
+      <button id="btn-reset-game" class="btn btn-danger">Réinitialiser l'expédition</button>
+    </section>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
