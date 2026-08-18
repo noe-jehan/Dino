@@ -372,17 +372,30 @@ function buildDinoCard(dino, { interactive = false, showStats = true } = {}) {
    ÉCRAN TITRE / INTRODUCTION
    ========================================================= */
 
+function refreshContinueButton() {
+  document.getElementById('btn-continue').hidden = !loadGame();
+}
+
+function resetMovementState() {
+  moving = false;
+  anim = null;
+  facingFlip = false;
+  facingUp = false;
+  walkFrame = 0;
+}
+
 function initTitleScreen() {
-  const saved = loadGame();
-  document.getElementById('btn-continue').hidden = !saved;
+  refreshContinueButton();
 
   document.getElementById('btn-new-game').addEventListener('click', () => {
-    if (saved && !confirm("Une expédition est déjà en cours. La remplacer par une nouvelle ?")) return;
+    if (loadGame() && !confirm("Une expédition est déjà en cours. La remplacer par une nouvelle ?")) return;
+    resetMovementState();
     state = defaultState();
     showScreen('screen-intro');
   });
 
   document.getElementById('btn-continue').addEventListener('click', () => {
+    resetMovementState();
     state = loadGame() ?? defaultState();
     enterOverworld();
   });
@@ -842,6 +855,14 @@ function animStep() {
   // conservé pour compatibilité, le rendu est géré par gameLoopTick
 }
 
+function finishPendingMove() {
+  if (!anim || !state) return;
+  state.pos.x = anim.toX;
+  state.pos.y = anim.toY;
+  anim = null;
+  moving = false;
+}
+
 function attemptMove(dx, dy) {
   if (moving || !state || !isOverworldActive()) return;
   const nx = state.pos.x + dx;
@@ -861,6 +882,7 @@ function attemptMove(dx, dy) {
 
 function tryInteract() {
   if (!isOverworldActive()) return;
+  finishPendingMove();
   const tile = tileAt(state.pos.x, state.pos.y);
   if (tile === 'C') {
     renderCampScreen();
@@ -1268,6 +1290,7 @@ const MOVE_KEYS = {
 
 function initEventListeners() {
   document.getElementById('btn-hud-team').addEventListener('click', () => {
+    finishPendingMove();
     teamReturnTarget = 'screen-overworld';
     renderTeamScreen();
     showScreen('screen-team');
@@ -1288,8 +1311,10 @@ function initEventListeners() {
     localStorage.removeItem(SAVE_KEY);
     state = null;
     battle = null;
+    rafRunning = false;
+    resetMovementState();
     showScreen('screen-title');
-    initTitleScreen();
+    refreshContinueButton();
   });
 
   document.getElementById('btn-fight').addEventListener('click', showMoveMenu);
