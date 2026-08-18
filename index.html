@@ -27,25 +27,52 @@
       <div id="starter-list" class="card-grid"></div>
     </section>
 
-    <!-- ÉCRAN PRINCIPAL (CAMP DE BASE) -->
-    <section id="screen-home" class="screen">
+    <!-- ÉCRAN MONDE OUVERT -->
+    <section id="screen-overworld" class="screen">
+      <div class="hud">
+        <div id="hud-dino" class="hud-dino"></div>
+        <div class="hud-resource">💉 <span id="hud-tranq">0</span></div>
+        <button id="btn-hud-team" class="btn btn-hud">📋 Équipe</button>
+      </div>
+
+      <div class="map-wrap">
+        <canvas id="game-canvas"></canvas>
+        <div id="toast" class="toast" hidden></div>
+        <div id="camp-hint" class="camp-hint" hidden>
+          <button id="btn-enter-camp" class="btn btn-primary btn-small">⛺ Installer le camp (E)</button>
+        </div>
+      </div>
+
+      <div class="overworld-footer">
+        <p class="controls-hint">Flèches ou ZQSD pour se déplacer · marchez dans les hautes herbes pour croiser des dinosaures</p>
+        <div class="dpad">
+          <button id="dpad-up" class="dpad-btn dpad-up" aria-label="Haut">▲</button>
+          <button id="dpad-left" class="dpad-btn dpad-left" aria-label="Gauche">◀</button>
+          <button id="dpad-down" class="dpad-btn dpad-down" aria-label="Bas">▼</button>
+          <button id="dpad-right" class="dpad-btn dpad-right" aria-label="Droite">▶</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ÉCRAN CAMP -->
+    <section id="screen-camp" class="screen">
       <header class="home-header">
         <h2>Camp de base</h2>
         <div class="resource">
           <span class="resource-icon">💉</span>
-          <span id="tranq-count">0</span> fléchettes tranquillisantes
+          <span id="camp-tranq-count">0</span> fléchettes tranquillisantes
         </div>
       </header>
 
-      <div id="active-dino-panel" class="panel"></div>
+      <div id="camp-active-dino-panel" class="panel"></div>
 
       <div class="home-actions">
-        <button id="btn-explore" class="btn btn-primary">🌴 Explorer l'île</button>
-        <button id="btn-heal" class="btn btn-secondary">🏕️ Soigner l'équipe</button>
-        <button id="btn-team" class="btn btn-secondary">📋 Gérer l'équipe</button>
+        <button id="btn-heal" class="btn btn-primary">🏕️ Soigner l'équipe</button>
+        <button id="btn-team-from-camp" class="btn btn-secondary">📋 Gérer l'équipe</button>
+        <button id="btn-leave-camp" class="btn btn-secondary">🌴 Reprendre l'exploration</button>
       </div>
 
-      <div id="home-log" class="log-box"></div>
+      <div id="camp-log" class="log-box"></div>
     </section>
 
     <!-- ÉCRAN COMBAT -->
@@ -73,7 +100,7 @@
     <section id="screen-team" class="screen">
       <header class="home-header">
         <h2>Votre équipe</h2>
-        <button id="btn-team-back" class="btn btn-secondary">← Retour au camp</button>
+        <button id="btn-team-back" class="btn btn-secondary">← Retour</button>
       </header>
       <div id="team-list" class="card-grid"></div>
       <button id="btn-reset-game" class="btn btn-danger">Réinitialiser l'expédition</button>

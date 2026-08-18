@@ -111,13 +111,81 @@ function getSpecies(id) {
 }
 
 /* =========================================================
+   CARTE DU MONDE
+   ========================================================= */
+
+const TILE = 40;
+const VIEW_COLS = 13;
+const VIEW_ROWS = 9;
+const MAP_W = 26;
+const MAP_H = 16;
+const SPAWN = { x: 5, y: 6 };
+
+const TILE_INFO = {
+  '.': { walkable: true, encounter: false },
+  '#': { walkable: true, encounter: true },
+  T: { walkable: false },
+  '~': { walkable: false },
+  R: { walkable: false },
+  C: { walkable: true, camp: true },
+};
+
+function buildMap() {
+  const grid = [];
+  for (let y = 0; y < MAP_H; y++) {
+    const row = [];
+    for (let x = 0; x < MAP_W; x++) {
+      const border = x === 0 || y === 0 || x === MAP_W - 1 || y === MAP_H - 1;
+      row.push(border ? 'T' : '.');
+    }
+    grid.push(row);
+  }
+
+  const fillRect = (x0, y0, x1, y1, tile) => {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (grid[y] && grid[y][x] !== undefined) grid[y][x] = tile;
+      }
+    }
+  };
+
+  fillRect(2, 6, 4, 7, 'C'); // camp
+  fillRect(7, 2, 12, 4, '#'); // clairière nord
+  fillRect(4, 9, 9, 12, '#'); // sous-bois ouest
+  fillRect(16, 3, 21, 6, '#'); // hautes herbes est
+  fillRect(14, 10, 20, 13, '#'); // marécage
+  fillRect(17, 12, 22, 14, '~'); // rivière
+
+  const rocks = [[6, 6], [10, 7], [13, 8], [19, 8], [9, 3], [23, 9], [6, 11], [15, 5]];
+  rocks.forEach(([x, y]) => { grid[y][x] = 'R'; });
+
+  const trees = [[13, 2], [14, 11], [8, 13], [21, 10], [5, 4], [12, 9]];
+  trees.forEach(([x, y]) => { grid[y][x] = 'T'; });
+
+  return grid.map((row) => row.join(''));
+}
+
+const MAP = buildMap();
+
+function tileAt(x, y) {
+  return MAP[y][x];
+}
+
+function isWalkable(x, y) {
+  if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return false;
+  const info = TILE_INFO[tileAt(x, y)];
+  return info ? info.walkable : false;
+}
+
+/* =========================================================
    ÉTAT DU JEU
    ========================================================= */
 
 const SAVE_KEY = 'jurassicTamersSave';
 
-let state = null; // état persistant (équipe, ressources...)
+let state = null; // état persistant (équipe, ressources, position...)
 let battle = null; // état transitoire de combat
+let teamReturnTarget = 'screen-overworld'; // écran vers lequel revenir depuis l'équipe
 
 function xpToNextLevel(level) {
   return level * 20;
@@ -145,6 +213,7 @@ function defaultState() {
     activeIndex: 0,
     explorationLevel: 1,
     wins: 0,
+    pos: { x: SPAWN.x, y: SPAWN.y },
   };
 }
 
@@ -156,7 +225,9 @@ function loadGame() {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed.pos) parsed.pos = { x: SPAWN.x, y: SPAWN.y };
+    return parsed;
   } catch {
     return null;
   }
@@ -184,6 +255,19 @@ function hpBarClass(hp, maxHp) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach((el) => el.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+}
+
+function isOverworldActive() {
+  return document.getElementById('screen-overworld').classList.contains('active');
+}
+
+let toastTimer = null;
+function toast(message) {
+  const el = document.getElementById('toast');
+  el.textContent = message;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
 }
 
 /* =========================================================
@@ -228,8 +312,7 @@ function initTitleScreen() {
 
   document.getElementById('btn-continue').addEventListener('click', () => {
     state = loadGame() ?? defaultState();
-    renderHome();
-    showScreen('screen-home');
+    enterOverworld();
   });
 }
 
@@ -246,25 +329,29 @@ function renderStarterScreen() {
     card.addEventListener('click', () => {
       state.team.push(createDino(species.id, 5));
       state.activeIndex = 0;
+      state.pos = { x: SPAWN.x, y: SPAWN.y };
       saveGame();
-      logHome(`Vous partez à l'aventure avec ${species.name} à vos côtés !`);
-      renderHome();
-      showScreen('screen-home');
+      toast(`Vous partez à l'aventure avec ${species.name} à vos côtés !`);
+      enterOverworld();
     });
     list.appendChild(card);
   });
 }
 
 /* =========================================================
-   ÉCRAN CAMP DE BASE
+   MONDE OUVERT
    ========================================================= */
 
-function logHome(message) {
-  const box = document.getElementById('home-log');
-  const p = document.createElement('p');
-  p.textContent = message;
-  box.appendChild(p);
-  box.scrollTop = box.scrollHeight;
+let canvas = null;
+let ctx = null;
+let moving = false;
+let anim = null;
+
+function initOverworld() {
+  canvas = document.getElementById('game-canvas');
+  canvas.width = VIEW_COLS * TILE;
+  canvas.height = VIEW_ROWS * TILE;
+  ctx = canvas.getContext('2d');
 }
 
 function getActiveDino() {
@@ -275,30 +362,153 @@ function getFirstHealthyIndex() {
   return state.team.findIndex((d) => d.hp > 0);
 }
 
-function renderHome() {
-  document.getElementById('tranq-count').textContent = state.tranqDarts;
+function updateHud() {
+  document.getElementById('hud-tranq').textContent = state.tranqDarts;
+  const hudDino = document.getElementById('hud-dino');
+  hudDino.innerHTML = '';
+  if (state.team.length === 0) return;
 
-  const panel = document.getElementById('active-dino-panel');
-  panel.innerHTML = '';
-  if (state.team.length === 0) {
-    panel.textContent = "Vous n'avez aucun dinosaure. Commencez une nouvelle expédition.";
-  } else {
-    const label = document.createElement('p');
-    label.textContent = 'Dinosaure actif :';
-    label.style.marginBottom = '8px';
-    panel.appendChild(label);
-    panel.appendChild(buildDinoCard(getActiveDino()));
-  }
+  const dino = getActiveDino();
+  const species = getSpecies(dino.speciesId);
+  const hpRatio = clamp((dino.hp / dino.maxHp) * 100, 0, 100);
+  const barClass = hpBarClass(dino.hp, dino.maxHp);
 
-  const canExplore = state.team.some((d) => d.hp > 0);
-  document.getElementById('btn-explore').disabled = !canExplore;
+  hudDino.innerHTML = `
+    <div class="hud-dino-emoji">${species.emoji}</div>
+    <div class="hud-dino-info">
+      <div class="hud-dino-name">${species.name} <small>Niv. ${dino.level}</small></div>
+      <div class="hp-bar-track hud-hp-track"><div class="hp-bar-fill ${barClass}" style="width:${hpRatio}%"></div></div>
+    </div>
+  `;
 }
 
-function healTeam() {
-  state.team.forEach((d) => (d.hp = d.maxHp));
-  saveGame();
-  logHome('Votre équipe est soignée et prête à repartir explorer l\'île.');
-  renderHome();
+function updateCampHint() {
+  const tile = tileAt(state.pos.x, state.pos.y);
+  document.getElementById('camp-hint').hidden = tile !== 'C';
+}
+
+function enterOverworld() {
+  updateHud();
+  showScreen('screen-overworld');
+  updateCampHint();
+  drawMap(state.pos);
+}
+
+function drawEmoji(context, emoji, x, y, size) {
+  context.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(emoji, x, y);
+}
+
+function drawTile(tile, sx, sy, tx, ty) {
+  const checker = (tx + ty) % 2 === 0;
+  switch (tile) {
+    case '#':
+      ctx.fillStyle = checker ? '#2f5c34' : '#356a3a';
+      ctx.fillRect(sx, sy, TILE, TILE);
+      ctx.strokeStyle = 'rgba(15,30,15,0.4)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const bx = sx + 8 + i * 11;
+        ctx.beginPath();
+        ctx.moveTo(bx, sy + TILE - 6);
+        ctx.lineTo(bx - 3, sy + TILE - 20);
+        ctx.stroke();
+      }
+      break;
+    case '~':
+      ctx.fillStyle = checker ? '#265974' : '#2c6584';
+      ctx.fillRect(sx, sy, TILE, TILE);
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sx + 4, sy + TILE / 2);
+      ctx.quadraticCurveTo(sx + TILE / 2, sy + TILE / 2 - 6, sx + TILE - 4, sy + TILE / 2);
+      ctx.stroke();
+      break;
+    case 'C':
+      ctx.fillStyle = checker ? '#5a4326' : '#63502f';
+      ctx.fillRect(sx, sy, TILE, TILE);
+      break;
+    default:
+      ctx.fillStyle = checker ? '#3a2f22' : '#40352a';
+      ctx.fillRect(sx, sy, TILE, TILE);
+  }
+  if (tile === 'T') drawEmoji(ctx, '🌴', sx + TILE / 2, sy + TILE / 2 + 3, 32);
+  if (tile === 'R') drawEmoji(ctx, '🪨', sx + TILE / 2, sy + TILE / 2 + 3, 24);
+  if (tile === 'C') drawEmoji(ctx, '⛺', sx + TILE / 2, sy + TILE / 2 + 2, 24);
+}
+
+function drawPlayer(px, py) {
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(px + TILE / 2, py + TILE - 8, 12, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const species = getSpecies(getActiveDino().speciesId);
+  drawEmoji(ctx, species.emoji, px + TILE / 2, py + TILE / 2, 28);
+}
+
+function drawMap(renderPos) {
+  if (!ctx || !state || state.team.length === 0) return;
+
+  const camX = clamp(Math.round(renderPos.x - (VIEW_COLS - 1) / 2), 0, MAP_W - VIEW_COLS);
+  const camY = clamp(Math.round(renderPos.y - (VIEW_ROWS - 1) / 2), 0, MAP_H - VIEW_ROWS);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let ty = camY; ty < camY + VIEW_ROWS; ty++) {
+    for (let tx = camX; tx < camX + VIEW_COLS; tx++) {
+      drawTile(tileAt(tx, ty), (tx - camX) * TILE, (ty - camY) * TILE, tx, ty);
+    }
+  }
+
+  drawPlayer((renderPos.x - camX) * TILE, (renderPos.y - camY) * TILE);
+}
+
+function onArriveTile() {
+  updateCampHint();
+  const tile = tileAt(state.pos.x, state.pos.y);
+  if (tile === '#' && getFirstHealthyIndex() !== -1 && Math.random() < 0.13) {
+    startEncounter();
+  }
+}
+
+function animStep(now) {
+  if (!anim) return;
+  const t = Math.min(1, (now - anim.start) / anim.duration);
+  const renderPos = {
+    x: anim.fromX + (anim.toX - anim.fromX) * t,
+    y: anim.fromY + (anim.toY - anim.fromY) * t,
+  };
+  drawMap(renderPos);
+  if (t < 1) {
+    requestAnimationFrame(animStep);
+  } else {
+    state.pos.x = anim.toX;
+    state.pos.y = anim.toY;
+    anim = null;
+    moving = false;
+    saveGame();
+    onArriveTile();
+    if (isOverworldActive()) drawMap(state.pos);
+  }
+}
+
+function attemptMove(dx, dy) {
+  if (moving || !state || !isOverworldActive()) return;
+  const nx = state.pos.x + dx;
+  const ny = state.pos.y + dy;
+  if (!isWalkable(nx, ny)) return;
+  moving = true;
+  anim = { fromX: state.pos.x, fromY: state.pos.y, toX: nx, toY: ny, start: performance.now(), duration: 130 };
+  requestAnimationFrame(animStep);
+}
+
+function tryEnterCamp() {
+  if (!isOverworldActive()) return;
+  if (tileAt(state.pos.x, state.pos.y) !== 'C') return;
+  renderCampScreen();
+  showScreen('screen-camp');
 }
 
 /* =========================================================
@@ -318,10 +528,7 @@ function weightedRandomSpecies() {
 
 function startEncounter() {
   const activeIdx = getFirstHealthyIndex();
-  if (activeIdx === -1) {
-    logHome('Toute votre équipe est épuisée. Soignez-la avant de repartir explorer.');
-    return;
-  }
+  if (activeIdx === -1) return;
   state.activeIndex = activeIdx;
 
   const species = weightedRandomSpecies();
@@ -351,10 +558,6 @@ function logBattle(message) {
   p.textContent = message;
   box.appendChild(p);
   box.scrollTop = box.scrollHeight;
-}
-
-function clearBattleLog() {
-  document.getElementById('battle-log').innerHTML = '';
 }
 
 function renderBattle() {
@@ -534,11 +737,21 @@ function showBattleEndMenu() {
 
   const back = document.createElement('button');
   back.className = 'btn btn-action';
-  back.textContent = 'Retour au camp';
+  back.textContent = 'Continuer l\'exploration';
   back.addEventListener('click', () => {
     battle = null;
-    renderHome();
-    showScreen('screen-home');
+    if (getFirstHealthyIndex() === -1) {
+      state.pos = { x: SPAWN.x, y: SPAWN.y };
+      saveGame();
+      toast('Toute votre équipe est épuisée. Retour au camp...');
+      renderCampScreen();
+      showScreen('screen-camp');
+    } else {
+      updateHud();
+      showScreen('screen-overworld');
+      updateCampHint();
+      drawMap(state.pos);
+    }
   });
   container.appendChild(back);
 }
@@ -590,6 +803,39 @@ function attemptCapture() {
 }
 
 /* =========================================================
+   ÉCRAN CAMP
+   ========================================================= */
+
+function campLog(message) {
+  const box = document.getElementById('camp-log');
+  const p = document.createElement('p');
+  p.textContent = message;
+  box.appendChild(p);
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderCampScreen() {
+  document.getElementById('camp-tranq-count').textContent = state.tranqDarts;
+  const panel = document.getElementById('camp-active-dino-panel');
+  panel.innerHTML = '';
+  if (state.team.length === 0) {
+    panel.textContent = "Vous n'avez aucun dinosaure.";
+    return;
+  }
+  const label = document.createElement('p');
+  label.textContent = 'Dinosaure actif';
+  panel.appendChild(label);
+  panel.appendChild(buildDinoCard(getActiveDino()));
+}
+
+function healTeam() {
+  state.team.forEach((d) => (d.hp = d.maxHp));
+  saveGame();
+  campLog("Votre équipe est soignée et prête à repartir explorer l'île.");
+  renderCampScreen();
+}
+
+/* =========================================================
    ÉCRAN ÉQUIPE
    ========================================================= */
 
@@ -609,27 +855,56 @@ function renderTeamScreen() {
   });
 }
 
+function leaveTeamScreen() {
+  showScreen(teamReturnTarget);
+  if (teamReturnTarget === 'screen-overworld') {
+    updateHud();
+    updateCampHint();
+    drawMap(state.pos);
+  } else {
+    renderCampScreen();
+  }
+}
+
 /* =========================================================
    INITIALISATION / ÉCOUTEURS D'ÉVÉNEMENTS
    ========================================================= */
 
+const MOVE_KEYS = {
+  ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+  z: [0, -1], Z: [0, -1], w: [0, -1], W: [0, -1],
+  s: [0, 1], S: [0, 1],
+  q: [-1, 0], Q: [-1, 0], a: [-1, 0], A: [-1, 0],
+  d: [1, 0], D: [1, 0],
+};
+
 function initEventListeners() {
-  document.getElementById('btn-explore').addEventListener('click', startEncounter);
-  document.getElementById('btn-heal').addEventListener('click', healTeam);
-  document.getElementById('btn-team').addEventListener('click', () => {
+  document.getElementById('btn-hud-team').addEventListener('click', () => {
+    teamReturnTarget = 'screen-overworld';
     renderTeamScreen();
     showScreen('screen-team');
   });
-  document.getElementById('btn-team-back').addEventListener('click', () => {
-    renderHome();
-    showScreen('screen-home');
+  document.getElementById('btn-team-from-camp').addEventListener('click', () => {
+    teamReturnTarget = 'screen-camp';
+    renderTeamScreen();
+    showScreen('screen-team');
   });
+  document.getElementById('btn-team-back').addEventListener('click', leaveTeamScreen);
+
+  document.getElementById('btn-enter-camp').addEventListener('click', tryEnterCamp);
+  document.getElementById('btn-heal').addEventListener('click', healTeam);
+  document.getElementById('btn-leave-camp').addEventListener('click', () => {
+    showScreen('screen-overworld');
+    updateHud();
+    updateCampHint();
+    drawMap(state.pos);
+  });
+
   document.getElementById('btn-reset-game').addEventListener('click', () => {
     if (!confirm('Réinitialiser toute la progression ? Cette action est irréversible.')) return;
     localStorage.removeItem(SAVE_KEY);
     state = null;
     battle = null;
-    document.getElementById('home-log').innerHTML = '';
     showScreen('screen-title');
     initTitleScreen();
   });
@@ -638,9 +913,29 @@ function initEventListeners() {
   document.getElementById('btn-tranq').addEventListener('click', attemptCapture);
   document.getElementById('btn-switch').addEventListener('click', showSwitchMenu);
   document.getElementById('btn-run').addEventListener('click', attemptRun);
+
+  document.getElementById('dpad-up').addEventListener('click', () => attemptMove(0, -1));
+  document.getElementById('dpad-down').addEventListener('click', () => attemptMove(0, 1));
+  document.getElementById('dpad-left').addEventListener('click', () => attemptMove(-1, 0));
+  document.getElementById('dpad-right').addEventListener('click', () => attemptMove(1, 0));
+
+  document.addEventListener('keydown', (e) => {
+    if (!isOverworldActive()) return;
+    if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      tryEnterCamp();
+      return;
+    }
+    const dir = MOVE_KEYS[e.key];
+    if (dir) {
+      e.preventDefault();
+      attemptMove(dir[0], dir[1]);
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  initOverworld();
   initTitleScreen();
   initEventListeners();
 });

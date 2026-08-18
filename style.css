@@ -242,3 +242,121 @@ h1, h2, h3 { font-family: 'Georgia', serif; margin: 0 0 8px; }
 @media (max-width: 560px) {
   .combatant-wild, .combatant-player { width: 100%; }
 }
+
+/* ---------- HUD (monde ouvert) ---------- */
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.hud-dino {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--jungle-800);
+  border: 1px solid var(--jungle-700);
+  border-radius: 10px;
+  padding: 6px 12px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.hud-dino-emoji { font-size: 1.8rem; line-height: 1; }
+.hud-dino-info { flex: 1; }
+.hud-dino-name { font-size: 0.85rem; margin-bottom: 4px; }
+.hud-dino-name small { opacity: 0.75; font-weight: normal; }
+.hud-hp-track { margin: 0; }
+
+.hud-resource {
+  background: var(--jungle-800);
+  border: 1px solid var(--amber);
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.btn-hud { background: var(--jungle-700); color: var(--paper); border: 1px solid var(--amber); white-space: nowrap; margin: 0; }
+
+/* ---------- Carte / monde ouvert ---------- */
+.map-wrap {
+  position: relative;
+  max-width: 520px;
+  margin: 0 auto;
+  border: 3px solid var(--jungle-700);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  background: rgba(11, 26, 18, 0.92);
+  border: 1px solid var(--amber);
+  color: var(--amber-light);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.camp-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+}
+
+.btn-small { padding: 8px 16px; font-size: 0.85rem; }
+
+.overworld-footer {
+  max-width: 520px;
+  margin: 14px auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.controls-hint { font-size: 0.8rem; color: #a9b8a2; text-align: center; margin: 0; }
+
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(2, 44px);
+  gap: 4px;
+  justify-content: center;
+}
+
+.dpad-btn {
+  background: var(--jungle-800);
+  border: 1px solid var(--amber);
+  color: var(--paper);
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.dpad-btn:active { background: var(--jungle-700); }
+
+.dpad-up { grid-column: 2; grid-row: 1; }
+.dpad-left { grid-column: 1; grid-row: 2; }
+.dpad-down { grid-column: 2; grid-row: 2; }
+.dpad-right { grid-column: 3; grid-row: 2; }
