@@ -236,23 +236,24 @@ h1, h2, h3 { font-family: 'Georgia', serif; margin: 0 0 8px; }
 
 .battle-sprite {
   position: absolute;
-  font-size: 3.6rem;
-  line-height: 1;
-  filter: drop-shadow(0 8px 10px rgba(0,0,0,0.35));
+  width: 190px;
+  aspect-ratio: 56 / 40;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 12px rgba(0,0,0,0.4));
   transition: transform .12s ease;
 }
-.battle-sprite-wild { top: 20%; right: 12%; font-size: 3.2rem; }
-.battle-sprite-player { bottom: 16%; left: 10%; font-size: 4.2rem; transform: scaleX(-1); }
+.battle-sprite-wild { top: 12%; right: 6%; width: 160px; transform: scaleX(-1); }
+.battle-sprite-player { bottom: 8%; left: 4%; width: 230px; }
 
 .battle-sprite.hit { animation: battle-hit .35s ease; }
 @keyframes battle-hit {
   0%, 100% { filter: drop-shadow(0 8px 10px rgba(0,0,0,0.35)); }
   40% { filter: brightness(3) drop-shadow(0 8px 10px rgba(0,0,0,0.35)); transform: translateX(4px); }
 }
-.battle-sprite-player.hit { animation-name: battle-hit-player; }
-@keyframes battle-hit-player {
+.battle-sprite-wild.hit { animation-name: battle-hit-wild; }
+@keyframes battle-hit-wild {
   0%, 100% { filter: drop-shadow(0 8px 10px rgba(0,0,0,0.35)); transform: scaleX(-1); }
-  40% { filter: brightness(3) drop-shadow(0 8px 10px rgba(0,0,0,0.35)); transform: scaleX(-1) translateX(4px); }
+  40% { filter: brightness(3) drop-shadow(0 8px 10px rgba(0,0,0,0.35)); transform: scaleX(-1) translateX(-4px); }
 }
 
 .battle-plate {
@@ -281,8 +282,8 @@ h1, h2, h3 { font-family: 'Georgia', serif; margin: 0 0 8px; }
 
 @media (max-width: 480px) {
   .battle-plate { min-width: 120px; font-size: 0.75rem; padding: 6px 9px; }
-  .battle-sprite-wild { font-size: 2.4rem; }
-  .battle-sprite-player { font-size: 3.2rem; }
+  .battle-sprite-wild { width: 110px; }
+  .battle-sprite-player { width: 155px; }
 }
 
 .battle-textbox {
