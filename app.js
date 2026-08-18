@@ -129,9 +129,10 @@ const EGG_STYLES = [
    TUILES ET CARTES
    ========================================================= */
 
-const TILE = 40;
-const VIEW_COLS = 13;
-const VIEW_ROWS = 9;
+const TILE = 48;
+const PXR = TILE / 16; // taille d'un "pixel" du pixel art (grille 16x16)
+const VIEW_COLS = 11;
+const VIEW_ROWS = 8;
 
 const TILE_INFO = {
   '.': { walkable: true },
@@ -517,151 +518,229 @@ function enterOverworld() {
   enterOverworldView();
 }
 
-/* ---------- Rendu du personnage ---------- */
+/* ---------- Pixel art : palette et outils ---------- */
+
+const PAL = {
+  grassA: '#3a7a42', grassB: '#4a8a4f', grassC: '#245229', grassD: '#5f9a56',
+  dirtA: '#4a3c2a', dirtB: '#5a4a34', dirtC: '#332818',
+  sandA: '#8a774f', sandB: '#9c8862', sandC: '#6b5a3e',
+  waterA: '#1f5068', waterB: '#3a7fa0', waterC: '#8fc8dd',
+  wallGreenA: '#16321c', wallGreenB: '#1e4224', wallGreenC: '#0e2013',
+  trunkA: '#5a3d22', trunkB: '#402c18',
+  canopyA: '#2c6b34', canopyB: '#3d8a45', canopyC: '#1c4620',
+  rockA: '#9aa1a9', rockB: '#767e86', rockC: '#565c63',
+  tentA: '#d1652c', tentB: '#a84a1e', tentC: '#5c2c10',
+  hutRoof: '#6b5338', hutRoofDark: '#40311f', hutWall: '#8a6b45', hutDoor: '#241a10', hutWindow: '#a9c9c4',
+  plankA: '#7a5c38', plankB: '#684d2e', plankLine: '#3f2c18',
+  bodyGray: '#697870', bodyGrayDark: '#495650', boneWhite: '#c9c2ac',
+  skin: '#f2c9a0', skinShade: '#dba97e', hair: '#e8c765', hairDark: '#c9a34f',
+  vest: '#e8853a', vestDark: '#b85f1f', pants: '#33405a', pantsDark: '#242e42', ink: '#241c14',
+};
+
+function tileHash(tx, ty, salt) {
+  let h = (tx * 374761393 + ty * 668265263 + salt * 2246822519) >>> 0;
+  h = (h ^ (h >>> 13)) * 1274126177 >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+function blk(ox, oy, gx, gy, gw, gh, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(ox + gx * PXR, oy + gy * PXR, gw * PXR, gh * PXR);
+}
+
+/* ---------- Sol ---------- */
+
+function drawGroundTile(ox, oy, tx, ty, base, dark, light) {
+  blk(ox, oy, 0, 0, 16, 16, base);
+  for (let i = 0; i < 4; i++) {
+    const hh = tileHash(tx, ty, 10 + i);
+    const gx = 1 + (hh % 13);
+    const gy = 1 + ((hh >> 4) % 13);
+    blk(ox, oy, gx, gy, 2, 1, i % 2 === 0 ? dark : light);
+  }
+}
+
+function groundPalette(theme) {
+  return theme === 'pier' ? [PAL.sandA, PAL.sandC, PAL.sandB] : [PAL.dirtA, PAL.dirtC, PAL.dirtB];
+}
+
+function drawTallGrassTile(ox, oy, tx, ty) {
+  blk(ox, oy, 0, 0, 16, 16, PAL.grassA);
+  for (let i = 0; i < 5; i++) {
+    const hh = tileHash(tx, ty, 20 + i);
+    const gx = 1 + (hh % 13);
+    const c = hh & 1 ? PAL.grassC : PAL.grassD;
+    blk(ox, oy, gx, 8, 1, 6, c);
+    blk(ox, oy, gx + 1, 11, 1, 3, c);
+  }
+  blk(ox, oy, 2, 2, 3, 1, PAL.grassB);
+  blk(ox, oy, 10, 4, 3, 1, PAL.grassB);
+}
+
+let waveOffset = 0;
+
+function drawWaterTile(ox, oy, tx, ty) {
+  blk(ox, oy, 0, 0, 16, 16, PAL.waterA);
+  const rowY = 6 + ((tx + ty) % 3) * 3;
+  const shift = Math.floor(waveOffset) % 16;
+  for (let gx = -4; gx < 16; gx += 6) {
+    const wx = ((gx + shift) % 20 + 20) % 20 - 4;
+    blk(ox, oy, wx, rowY, 3, 1, PAL.waterB);
+  }
+  const hh = tileHash(tx, ty, 30);
+  blk(ox, oy, hh % 13, 2 + ((hh >> 3) % 3), 1, 1, PAL.waterC);
+}
+
+function drawDockTile(ox, oy, tx, ty) {
+  blk(ox, oy, 0, 0, 16, 16, (tx + ty) % 2 === 0 ? PAL.plankA : PAL.plankB);
+  blk(ox, oy, 0, 5, 16, 1, PAL.plankLine);
+  blk(ox, oy, 0, 11, 16, 1, PAL.plankLine);
+  blk(ox, oy, 7, 0, 1, 16, PAL.plankLine);
+}
+
+/* ---------- Objets posés sur une tuile ---------- */
+
+function drawTreeObject(ox, oy) {
+  blk(ox, oy, 7, 11, 2, 5, PAL.trunkA);
+  blk(ox, oy, 7, 11, 1, 5, PAL.trunkB);
+  const rows = [[-5, 6, 4], [-4, 4, 8], [-3, 2, 12], [-2, 1, 14], [-1, 1, 14], [0, 2, 12], [1, 4, 8]];
+  rows.forEach(([dy, gx, w]) => blk(ox, oy, gx, dy, w, 1, PAL.canopyA));
+  blk(ox, oy, 9, -3, 4, 3, PAL.canopyC);
+  blk(ox, oy, 3, -4, 3, 3, PAL.canopyB);
+}
+
+function drawRockObject(ox, oy, tx, ty) {
+  blk(ox, oy, 4, 10, 8, 4, PAL.rockB);
+  blk(ox, oy, 5, 9, 6, 2, PAL.rockA);
+  blk(ox, oy, 5, 13, 7, 1, PAL.rockC);
+  blk(ox, oy, 6, 10, 2, 2, PAL.rockA);
+}
+
+function drawTentObject(ox, oy) {
+  const rows = [[3, 7, 2], [4, 6, 4], [5, 5, 6], [6, 4, 8], [7, 3, 10], [8, 3, 10]];
+  rows.forEach(([gy, gx, w]) => blk(ox, oy, gx, gy, w, 1, PAL.tentA));
+  blk(ox, oy, 7, 6, 2, 3, PAL.tentC);
+  blk(ox, oy, 3, 9, 10, 2, PAL.tentB);
+}
+
+function drawCabinObject(ox, oy) {
+  blk(ox, oy, 2, 1, 12, 2, PAL.hutRoofDark);
+  blk(ox, oy, 3, 3, 10, 2, PAL.hutRoof);
+  blk(ox, oy, 3, 5, 10, 8, PAL.hutWall);
+  blk(ox, oy, 7, 8, 3, 5, PAL.hutDoor);
+  blk(ox, oy, 4, 6, 2, 2, PAL.hutWindow);
+  blk(ox, oy, 11, 6, 1, 7, PAL.hutRoofDark);
+}
+
+function drawCarcassObject(ox, oy) {
+  blk(ox, oy, 1, 9, 13, 4, PAL.bodyGray);
+  blk(ox, oy, 0, 10, 3, 2, PAL.bodyGray);
+  blk(ox, oy, 13, 11, 3, 2, PAL.bodyGrayDark);
+  for (let i = 0; i < 3; i++) blk(ox, oy, 4 + i * 3, 9, 1, 4, PAL.bodyGrayDark);
+  blk(ox, oy, 1, 10, 1, 1, PAL.ink);
+  blk(ox, oy, 2, 11, 1, 1, PAL.ink);
+  blk(ox, oy, 9, 10, 2, 1, PAL.boneWhite);
+}
+
+function drawTile(tile, sx, sy, tx, ty, theme) {
+  const [base, dark, light] = groundPalette(theme);
+  switch (tile) {
+    case '#':
+      drawTallGrassTile(sx, sy, tx, ty);
+      break;
+    case '~':
+      drawWaterTile(sx, sy, tx, ty);
+      break;
+    case 'B':
+      drawDockTile(sx, sy, tx, ty);
+      break;
+    case 'C':
+      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawTentObject(sx, sy);
+      break;
+    case 'K':
+      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawCabinObject(sx, sy);
+      break;
+    case 'D':
+      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawCarcassObject(sx, sy);
+      break;
+    case 'T':
+      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawTreeObject(sx, sy);
+      break;
+    case 'J':
+      drawGroundTile(sx, sy, tx, ty, PAL.wallGreenA, PAL.wallGreenC, PAL.wallGreenB);
+      drawTreeObject(sx - 5, sy + 3);
+      drawTreeObject(sx + 5, sy);
+      break;
+    case 'R':
+      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawRockObject(sx, sy, tx, ty);
+      break;
+    default:
+      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+  }
+}
+
+/* ---------- Personnage ---------- */
 
 function drawExplorer(px, py) {
-  const cx = px + TILE / 2;
-  const topY = py + TILE / 2 - 15;
-  const step = walkFrame === 1 ? 3 : -3;
+  const spriteW = 16 * PXR;
+  const spriteH = 20 * PXR;
+  const ox = px + (TILE - spriteW) / 2;
+  const oy = py + TILE - spriteH;
+  const lift = walkFrame === 1 ? 1 : 0;
 
   ctx.save();
   if (facingFlip) {
-    ctx.translate(cx * 2, 0);
+    ctx.translate(px * 2 + TILE, 0);
     ctx.scale(-1, 1);
   }
 
   // ombre
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
-  ctx.ellipse(cx, py + TILE - 6, 10, 4, 0, 0, Math.PI * 2);
+  ctx.ellipse(px + TILE / 2, py + TILE - PXR, PXR * 3.5, PXR * 1.4, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // jambes
-  ctx.fillStyle = '#3a4a63';
-  ctx.fillRect(cx - 6, topY + 21, 5, 9 + Math.max(0, -step));
-  ctx.fillRect(cx + 1, topY + 21, 5, 9 + Math.max(0, step));
+  // jambes (alternance de marche)
+  blk(ox, oy, 5, 15 - (1 - lift), 3, 4 + (1 - lift), PAL.pants);
+  blk(ox, oy, 9, 15 - lift, 3, 4 + lift, PAL.pants);
+  blk(ox, oy, 5, 18, 3, 1, PAL.ink);
+  blk(ox, oy, 9, 18, 3, 1, PAL.ink);
 
   // gilet de sauvetage
-  ctx.fillStyle = '#e8853a';
-  ctx.fillRect(cx - 8, topY + 7, 16, 15);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.fillRect(cx - 8, topY + 7, 16, 3);
-  ctx.fillStyle = '#c96a28';
-  ctx.fillRect(cx - 1, topY + 7, 2, 15);
+  blk(ox, oy, 3, 8, 10, 7, PAL.vest);
+  blk(ox, oy, 3, 8, 10, 1, PAL.vestDark);
+  blk(ox, oy, 7, 8, 2, 7, PAL.vestDark);
 
   // bras
-  ctx.fillStyle = '#f2c9a0';
-  ctx.fillRect(cx - 11, topY + 9, 4, 9);
-  ctx.fillRect(cx + 7, topY + 9, 4, 9);
+  blk(ox, oy, 1, 9, 2, 6, PAL.skin);
+  blk(ox, oy, 13, 9, 2, 6, PAL.skin);
 
-  // tête
-  ctx.fillStyle = '#f2c9a0';
-  ctx.beginPath();
-  ctx.arc(cx, topY + 1, 8, 0, Math.PI * 2);
-  ctx.fill();
-
-  // cheveux (carré blond)
-  ctx.fillStyle = '#e8c765';
   if (facingUp) {
-    ctx.beginPath();
-    ctx.arc(cx, topY, 9, Math.PI, Math.PI * 2);
-    ctx.fill();
-    ctx.fillRect(cx - 9, topY - 1, 18, 8);
+    // vu de dos : cheveux couvrent toute la tête
+    blk(ox, oy, 4, 1, 8, 6, PAL.hair);
+    blk(ox, oy, 4, 6, 8, 2, PAL.hairDark);
+    blk(ox, oy, 7, 1, 1, 7, PAL.hairDark);
   } else {
-    ctx.beginPath();
-    ctx.arc(cx, topY - 1, 9, Math.PI * 1.02, Math.PI * 1.98);
-    ctx.fill();
-    ctx.fillRect(cx - 9, topY - 4, 18, 5);
-    ctx.fillStyle = '#2a2a2a';
-    ctx.fillRect(cx - 4, topY, 2, 2);
-    ctx.fillRect(cx + 2, topY, 2, 2);
+    // visage
+    blk(ox, oy, 4, 3, 8, 5, PAL.skin);
+    blk(ox, oy, 4, 7, 8, 1, PAL.skinShade);
+    // yeux
+    blk(ox, oy, 5, 5, 1, 1, PAL.ink);
+    blk(ox, oy, 10, 5, 1, 1, PAL.ink);
+    // cheveux (carré blond avec frange)
+    blk(ox, oy, 4, 0, 8, 3, PAL.hair);
+    blk(ox, oy, 3, 1, 1, 4, PAL.hair);
+    blk(ox, oy, 12, 1, 1, 4, PAL.hair);
+    blk(ox, oy, 4, 3, 2, 1, PAL.hairDark);
+    blk(ox, oy, 10, 3, 2, 1, PAL.hairDark);
   }
 
   ctx.restore();
-}
-
-function drawEmoji(context, emoji, x, y, size) {
-  context.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
-  context.textAlign = 'center';
-  context.textBaseline = 'middle';
-  context.fillText(emoji, x, y);
-}
-
-function drawTile(tile, sx, sy, tx, ty, theme) {
-  const checker = (tx + ty) % 2 === 0;
-  switch (tile) {
-    case '#':
-      ctx.fillStyle = checker ? '#2f5c34' : '#356a3a';
-      ctx.fillRect(sx, sy, TILE, TILE);
-      ctx.strokeStyle = 'rgba(15,30,15,0.4)';
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++) {
-        const bx = sx + 8 + i * 11;
-        ctx.beginPath();
-        ctx.moveTo(bx, sy + TILE - 6);
-        ctx.lineTo(bx - 3, sy + TILE - 20);
-        ctx.stroke();
-      }
-      break;
-    case '~':
-      ctx.fillStyle = checker ? '#265974' : '#2c6584';
-      ctx.fillRect(sx, sy, TILE, TILE);
-      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(sx + 4, sy + TILE / 2);
-      ctx.quadraticCurveTo(sx + TILE / 2, sy + TILE / 2 - 6, sx + TILE - 4, sy + TILE / 2);
-      ctx.stroke();
-      break;
-    case 'C':
-    case 'K':
-      ctx.fillStyle = checker ? '#5a4326' : '#63502f';
-      ctx.fillRect(sx, sy, TILE, TILE);
-      break;
-    case 'B':
-      ctx.fillStyle = checker ? '#6b5638' : '#71603f';
-      ctx.fillRect(sx, sy, TILE, TILE);
-      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy + TILE / 2);
-      ctx.lineTo(sx + TILE, sy + TILE / 2);
-      ctx.stroke();
-      break;
-    case 'J':
-      ctx.fillStyle = checker ? '#152a19' : '#1a331e';
-      ctx.fillRect(sx, sy, TILE, TILE);
-      break;
-    default:
-      if (theme === 'pier') {
-        ctx.fillStyle = checker ? '#5a4a35' : '#63523c';
-      } else {
-        ctx.fillStyle = checker ? '#3a2f22' : '#40352a';
-      }
-      ctx.fillRect(sx, sy, TILE, TILE);
-  }
-
-  if (tile === 'T') drawEmoji(ctx, '🌴', sx + TILE / 2, sy + TILE / 2 + 3, 32);
-  if (tile === 'R') drawEmoji(ctx, '🪨', sx + TILE / 2, sy + TILE / 2 + 3, 24);
-  if (tile === 'C') drawEmoji(ctx, '⛺', sx + TILE / 2, sy + TILE / 2 + 2, 24);
-  if (tile === 'J') drawEmoji(ctx, '🌳', sx + TILE / 2, sy + TILE / 2 + 4, 38);
-  if (tile === 'K') {
-    ctx.save();
-    ctx.filter = 'grayscale(0.4) brightness(0.85)';
-    drawEmoji(ctx, '🛖', sx + TILE / 2, sy + TILE / 2 + 1, 30);
-    ctx.restore();
-  }
-  if (tile === 'D') {
-    ctx.save();
-    ctx.filter = 'grayscale(0.85) brightness(0.65)';
-    ctx.translate(sx + TILE / 2, sy + TILE / 2 + 4);
-    ctx.rotate(Math.PI / 2);
-    ctx.font = '34px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🦕', 0, 0);
-    ctx.restore();
-  }
 }
 
 function drawMap(renderPos) {
@@ -730,6 +809,7 @@ function gameLoopTick(now) {
     }
   }
 
+  waveOffset += 0.06;
   drawMap(renderPos);
   requestAnimationFrame(gameLoopTick);
 }
