@@ -25,7 +25,7 @@ function getMultiplier(moveType, defenderType) {
 const SPECIES = [
   {
     id: 'velociraptor', name: 'Vélociraptor', type: 'carnivore', emoji: '🦖',
-    isStarter: true, rarity: 1,
+    isEgg: true, rarity: 1,
     base: { hp: 32, atk: 12, def: 8 },
     moves: [
       { name: 'Griffure', power: 14, type: 'carnivore' },
@@ -34,7 +34,7 @@ const SPECIES = [
   },
   {
     id: 'tyrannosaurus', name: 'Tyrannosaure', type: 'carnivore', emoji: '🐉',
-    isStarter: false, rarity: 3,
+    isEgg: false, rarity: 3,
     base: { hp: 55, atk: 16, def: 10 },
     moves: [
       { name: 'Mâchoires broyeuses', power: 18, type: 'carnivore' },
@@ -42,8 +42,8 @@ const SPECIES = [
     ],
   },
   {
-    id: 'dilophosaurus', name: 'Dilophosaure', type: 'carnivore', emoji: '🦎',
-    isStarter: false, rarity: 2,
+    id: 'dilophosaurus', name: 'Dilophosaure', type: 'carnivore', emoji: '🐍',
+    isEgg: false, rarity: 2,
     base: { hp: 30, atk: 11, def: 7 },
     moves: [
       { name: 'Crachat venimeux', power: 15, type: 'carnivore' },
@@ -51,8 +51,17 @@ const SPECIES = [
     ],
   },
   {
+    id: 'compsognathus', name: 'Compsognathus', type: 'carnivore', emoji: '🦎',
+    isEgg: false, rarity: 1,
+    base: { hp: 16, atk: 7, def: 4 },
+    moves: [
+      { name: 'Nuée véloce', power: 10, type: 'carnivore' },
+      { name: 'Griffade', power: 7, type: 'neutral' },
+    ],
+  },
+  {
     id: 'triceratops', name: 'Tricératops', type: 'herbivore', emoji: '🦏',
-    isStarter: true, rarity: 1,
+    isEgg: true, rarity: 1,
     base: { hp: 40, atk: 9, def: 14 },
     moves: [
       { name: 'Charge de cornes', power: 14, type: 'herbivore' },
@@ -61,7 +70,7 @@ const SPECIES = [
   },
   {
     id: 'stegosaurus', name: 'Stégosaure', type: 'herbivore', emoji: '🐢',
-    isStarter: false, rarity: 2,
+    isEgg: false, rarity: 2,
     base: { hp: 42, atk: 10, def: 13 },
     moves: [
       { name: 'Coup de queue à pointes', power: 15, type: 'herbivore' },
@@ -70,7 +79,7 @@ const SPECIES = [
   },
   {
     id: 'brachiosaurus', name: 'Brachiosaure', type: 'herbivore', emoji: '🦕',
-    isStarter: false, rarity: 3,
+    isEgg: false, rarity: 3,
     base: { hp: 60, atk: 8, def: 12 },
     moves: [
       { name: 'Coup de queue massif', power: 16, type: 'herbivore' },
@@ -79,7 +88,7 @@ const SPECIES = [
   },
   {
     id: 'pteranodon', name: 'Ptéranodon', type: 'pterosaur', emoji: '🦅',
-    isStarter: true, rarity: 1,
+    isEgg: true, rarity: 1,
     base: { hp: 28, atk: 10, def: 6 },
     moves: [
       { name: 'Piqué vertical', power: 14, type: 'pterosaur' },
@@ -88,7 +97,7 @@ const SPECIES = [
   },
   {
     id: 'dimorphodon', name: 'Dimorphodon', type: 'pterosaur', emoji: '🦇',
-    isStarter: false, rarity: 2,
+    isEgg: false, rarity: 2,
     base: { hp: 24, atk: 9, def: 5 },
     moves: [
       { name: 'Vol rasant', power: 13, type: 'pterosaur' },
@@ -97,7 +106,7 @@ const SPECIES = [
   },
   {
     id: 'quetzalcoatlus', name: 'Quetzalcoatlus', type: 'pterosaur', emoji: '🦉',
-    isStarter: false, rarity: 3,
+    isEgg: false, rarity: 3,
     base: { hp: 34, atk: 13, def: 7 },
     moves: [
       { name: 'Serres tranchantes', power: 17, type: 'pterosaur' },
@@ -110,69 +119,128 @@ function getSpecies(id) {
   return SPECIES.find((s) => s.id === id);
 }
 
+const EGG_STYLES = [
+  { emoji: '🥚', label: 'Œuf tacheté de brun' },
+  { emoji: '🥚', label: 'Œuf strié de vert' },
+  { emoji: '🥚', label: 'Œuf moucheté de gris' },
+];
+
 /* =========================================================
-   CARTE DU MONDE
+   TUILES ET CARTES
    ========================================================= */
 
 const TILE = 40;
 const VIEW_COLS = 13;
 const VIEW_ROWS = 9;
-const MAP_W = 26;
-const MAP_H = 16;
-const SPAWN = { x: 5, y: 6 };
 
 const TILE_INFO = {
-  '.': { walkable: true, encounter: false },
+  '.': { walkable: true },
   '#': { walkable: true, encounter: true },
   T: { walkable: false },
   '~': { walkable: false },
   R: { walkable: false },
   C: { walkable: true, camp: true },
+  B: { walkable: true },
+  J: { walkable: false },
+  D: { walkable: false },
+  K: { walkable: true, cabin: true },
+  X: { walkable: true, exit: true },
 };
 
-function buildMap() {
+function fillRect(grid, x0, y0, x1, y1, tile) {
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      if (grid[y] && grid[y][x] !== undefined) grid[y][x] = tile;
+    }
+  }
+}
+
+function buildIslandMap() {
+  const w = 26, h = 16;
   const grid = [];
-  for (let y = 0; y < MAP_H; y++) {
+  for (let y = 0; y < h; y++) {
     const row = [];
-    for (let x = 0; x < MAP_W; x++) {
-      const border = x === 0 || y === 0 || x === MAP_W - 1 || y === MAP_H - 1;
+    for (let x = 0; x < w; x++) {
+      const border = x === 0 || y === 0 || x === w - 1 || y === h - 1;
       row.push(border ? 'T' : '.');
     }
     grid.push(row);
   }
 
-  const fillRect = (x0, y0, x1, y1, tile) => {
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        if (grid[y] && grid[y][x] !== undefined) grid[y][x] = tile;
-      }
-    }
-  };
-
-  fillRect(2, 6, 4, 7, 'C'); // camp
-  fillRect(7, 2, 12, 4, '#'); // clairière nord
-  fillRect(4, 9, 9, 12, '#'); // sous-bois ouest
-  fillRect(16, 3, 21, 6, '#'); // hautes herbes est
-  fillRect(14, 10, 20, 13, '#'); // marécage
-  fillRect(17, 12, 22, 14, '~'); // rivière
+  fillRect(grid, 2, 6, 4, 7, 'C'); // camp
+  fillRect(grid, 7, 2, 12, 4, '#'); // clairière nord
+  fillRect(grid, 4, 9, 9, 12, '#'); // sous-bois ouest
+  fillRect(grid, 16, 3, 21, 6, '#'); // hautes herbes est
+  fillRect(grid, 14, 10, 20, 13, '#'); // marécage
+  fillRect(grid, 17, 12, 22, 14, '~'); // rivière
 
   const rocks = [[6, 6], [10, 7], [13, 8], [19, 8], [9, 3], [23, 9], [6, 11], [15, 5]];
   rocks.forEach(([x, y]) => { grid[y][x] = 'R'; });
 
-  const trees = [[13, 2], [14, 11], [8, 13], [21, 10], [5, 4], [12, 9]];
+  const trees = [[13, 2], [14, 11], [8, 13], [21, 10], [12, 9]];
   trees.forEach(([x, y]) => { grid[y][x] = 'T'; });
 
-  return grid.map((row) => row.join(''));
+  return { w, h, rows: grid.map((row) => row.join('')) };
 }
 
-const MAP = buildMap();
+function buildPierMap() {
+  const w = 16, h = 12;
+  const grid = [];
+  for (let y = 0; y < h; y++) {
+    const row = [];
+    for (let x = 0; x < w; x++) {
+      let tile = '.';
+      if (y <= 2) tile = 'J';
+      else if (y >= h - 1) tile = '~';
+      else if (x <= 1 || x >= w - 2) tile = 'J';
+      row.push(tile);
+    }
+    grid.push(row);
+  }
+
+  grid[2][7] = 'X';
+  grid[2][8] = 'X';
+
+  fillRect(grid, 7, 9, 8, 10, 'B'); // ponton
+  fillRect(grid, 11, 4, 13, 6, '#'); // hautes herbes
+  grid[6][4] = 'D'; // dinosaure mort
+  fillRect(grid, 2, 3, 3, 3, 'K'); // cabane du garde
+  grid[5][6] = 'R';
+  grid[7][9] = 'R';
+
+  return { w, h, rows: grid.map((row) => row.join('')) };
+}
+
+const ZONES = {
+  island: {
+    ...buildIslandMap(),
+    spawn: { x: 5, y: 6 },
+    weather: 'clear',
+    encounterSpecies: null,
+    encounterRate: 0.13,
+    theme: 'island',
+  },
+  pier: {
+    ...buildPierMap(),
+    spawn: { x: 7, y: 8 },
+    weather: 'rain',
+    encounterSpecies: ['compsognathus'],
+    encounterRate: 0.16,
+    theme: 'pier',
+  },
+};
+
+function currentZone() {
+  return ZONES[state.zoneId];
+}
 
 function tileAt(x, y) {
-  return MAP[y][x];
+  return currentZone().rows[y][x];
 }
 
 function isWalkable(x, y) {
-  if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return false;
+  const zone = currentZone();
+  if (x < 0 || y < 0 || x >= zone.w || y >= zone.h) return false;
   const info = TILE_INFO[tileAt(x, y)];
   return info ? info.walkable : false;
 }
@@ -183,7 +251,7 @@ function isWalkable(x, y) {
 
 const SAVE_KEY = 'jurassicTamersSave';
 
-let state = null; // état persistant (équipe, ressources, position...)
+let state = null; // état persistant (équipe, ressources, position, zone...)
 let battle = null; // état transitoire de combat
 let teamReturnTarget = 'screen-overworld'; // écran vers lequel revenir depuis l'équipe
 
@@ -213,7 +281,9 @@ function defaultState() {
     activeIndex: 0,
     explorationLevel: 1,
     wins: 0,
-    pos: { x: SPAWN.x, y: SPAWN.y },
+    zoneId: 'pier',
+    pos: { x: ZONES.pier.spawn.x, y: ZONES.pier.spawn.y },
+    cabinVisited: false,
   };
 }
 
@@ -226,7 +296,9 @@ function loadGame() {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed.pos) parsed.pos = { x: SPAWN.x, y: SPAWN.y };
+    if (!parsed.zoneId) parsed.zoneId = 'island';
+    if (!parsed.pos) parsed.pos = { x: ZONES[parsed.zoneId].spawn.x, y: ZONES[parsed.zoneId].spawn.y };
+    if (typeof parsed.cabinVisited !== 'boolean') parsed.cabinVisited = true;
     return parsed;
   } catch {
     return null;
@@ -267,7 +339,7 @@ function toast(message) {
   el.textContent = message;
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 2800);
 }
 
 /* =========================================================
@@ -296,7 +368,7 @@ function buildDinoCard(dino, { interactive = false, showStats = true } = {}) {
 }
 
 /* =========================================================
-   ÉCRAN TITRE
+   ÉCRAN TITRE / INTRODUCTION
    ========================================================= */
 
 function initTitleScreen() {
@@ -306,36 +378,52 @@ function initTitleScreen() {
   document.getElementById('btn-new-game').addEventListener('click', () => {
     if (saved && !confirm("Une expédition est déjà en cours. La remplacer par une nouvelle ?")) return;
     state = defaultState();
-    renderStarterScreen();
-    showScreen('screen-starter');
+    showScreen('screen-intro');
   });
 
   document.getElementById('btn-continue').addEventListener('click', () => {
     state = loadGame() ?? defaultState();
     enterOverworld();
   });
+
+  document.getElementById('btn-start-intro').addEventListener('click', () => {
+    saveGame();
+    enterOverworld();
+    toast('Vous débarquez sur la plage. La pluie ne faiblit pas.');
+  });
 }
 
 /* =========================================================
-   ÉCRAN CHOIX DU STARTER
+   ÉCRAN ŒUFS (CABANE)
    ========================================================= */
 
-function renderStarterScreen() {
-  const list = document.getElementById('starter-list');
+function renderEggScreen() {
+  const list = document.getElementById('egg-list');
   list.innerHTML = '';
-  SPECIES.filter((s) => s.isStarter).forEach((species) => {
-    const preview = createDino(species.id, 5);
-    const card = buildDinoCard(preview, { interactive: true, showStats: true });
-    card.addEventListener('click', () => {
-      state.team.push(createDino(species.id, 5));
-      state.activeIndex = 0;
-      state.pos = { x: SPAWN.x, y: SPAWN.y };
-      saveGame();
-      toast(`Vous partez à l'aventure avec ${species.name} à vos côtés !`);
-      enterOverworld();
-    });
+  const eggSpecies = SPECIES.filter((s) => s.isEgg);
+
+  eggSpecies.forEach((species, index) => {
+    const style = EGG_STYLES[index % EGG_STYLES.length];
+    const card = document.createElement('div');
+    card.className = 'dino-card egg-card';
+    card.innerHTML = `
+      <div class="dino-emoji egg-emoji">${style.emoji}</div>
+      <div class="dino-name">${style.label}</div>
+      <div class="dino-level">Il est encore chaud...</div>
+    `;
+    card.addEventListener('click', () => hatchEgg(species));
     list.appendChild(card);
   });
+}
+
+function hatchEgg(species) {
+  const dino = createDino(species.id, 5);
+  state.team.push(dino);
+  state.activeIndex = 0;
+  state.cabinVisited = true;
+  saveGame();
+  toast(`L'œuf éclot... c'est un ${species.name} !`);
+  enterOverworldView();
 }
 
 /* =========================================================
@@ -346,12 +434,30 @@ let canvas = null;
 let ctx = null;
 let moving = false;
 let anim = null;
+let rafRunning = false;
+let rainDrops = [];
+let facingFlip = false; // true = regarde vers la gauche
+let facingUp = false;
+let walkFrame = 0;
 
 function initOverworld() {
   canvas = document.getElementById('game-canvas');
   canvas.width = VIEW_COLS * TILE;
   canvas.height = VIEW_ROWS * TILE;
   ctx = canvas.getContext('2d');
+  initRain();
+}
+
+function initRain() {
+  rainDrops = [];
+  for (let i = 0; i < 46; i++) {
+    rainDrops.push({
+      x: Math.random() * (VIEW_COLS * TILE),
+      y: Math.random() * (VIEW_ROWS * TILE),
+      len: 9 + Math.random() * 9,
+      speed: 7 + Math.random() * 5,
+    });
+  }
 }
 
 function getActiveDino() {
@@ -366,7 +472,10 @@ function updateHud() {
   document.getElementById('hud-tranq').textContent = state.tranqDarts;
   const hudDino = document.getElementById('hud-dino');
   hudDino.innerHTML = '';
-  if (state.team.length === 0) return;
+  if (state.team.length === 0) {
+    hudDino.innerHTML = '<div class="hud-dino-info"><div class="hud-dino-name">Aucun dinosaure — trouvez la cabane</div></div>';
+    return;
+  }
 
   const dino = getActiveDino();
   const species = getSpecies(dino.speciesId);
@@ -382,16 +491,93 @@ function updateHud() {
   `;
 }
 
-function updateCampHint() {
+function updateInteractHint() {
   const tile = tileAt(state.pos.x, state.pos.y);
-  document.getElementById('camp-hint').hidden = tile !== 'C';
+  const hint = document.getElementById('interact-hint');
+  const btn = document.getElementById('btn-interact');
+  if (tile === 'C') {
+    hint.hidden = false;
+    btn.textContent = '⛺ Installer le camp (E)';
+  } else if (tile === 'K') {
+    hint.hidden = false;
+    btn.textContent = state.cabinVisited ? '🛖 Cabane vide (E)' : '🛖 Entrer dans la cabane (E)';
+  } else {
+    hint.hidden = true;
+  }
+}
+
+function enterOverworldView() {
+  updateHud();
+  showScreen('screen-overworld');
+  updateInteractHint();
+  startGameLoop();
 }
 
 function enterOverworld() {
-  updateHud();
-  showScreen('screen-overworld');
-  updateCampHint();
-  drawMap(state.pos);
+  enterOverworldView();
+}
+
+/* ---------- Rendu du personnage ---------- */
+
+function drawExplorer(px, py) {
+  const cx = px + TILE / 2;
+  const topY = py + TILE / 2 - 15;
+  const step = walkFrame === 1 ? 3 : -3;
+
+  ctx.save();
+  if (facingFlip) {
+    ctx.translate(cx * 2, 0);
+    ctx.scale(-1, 1);
+  }
+
+  // ombre
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(cx, py + TILE - 6, 10, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // jambes
+  ctx.fillStyle = '#3a4a63';
+  ctx.fillRect(cx - 6, topY + 21, 5, 9 + Math.max(0, -step));
+  ctx.fillRect(cx + 1, topY + 21, 5, 9 + Math.max(0, step));
+
+  // gilet de sauvetage
+  ctx.fillStyle = '#e8853a';
+  ctx.fillRect(cx - 8, topY + 7, 16, 15);
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(cx - 8, topY + 7, 16, 3);
+  ctx.fillStyle = '#c96a28';
+  ctx.fillRect(cx - 1, topY + 7, 2, 15);
+
+  // bras
+  ctx.fillStyle = '#f2c9a0';
+  ctx.fillRect(cx - 11, topY + 9, 4, 9);
+  ctx.fillRect(cx + 7, topY + 9, 4, 9);
+
+  // tête
+  ctx.fillStyle = '#f2c9a0';
+  ctx.beginPath();
+  ctx.arc(cx, topY + 1, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // cheveux (carré blond)
+  ctx.fillStyle = '#e8c765';
+  if (facingUp) {
+    ctx.beginPath();
+    ctx.arc(cx, topY, 9, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 9, topY - 1, 18, 8);
+  } else {
+    ctx.beginPath();
+    ctx.arc(cx, topY - 1, 9, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.fill();
+    ctx.fillRect(cx - 9, topY - 4, 18, 5);
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(cx - 4, topY, 2, 2);
+    ctx.fillRect(cx + 2, topY, 2, 2);
+  }
+
+  ctx.restore();
 }
 
 function drawEmoji(context, emoji, x, y, size) {
@@ -401,7 +587,7 @@ function drawEmoji(context, emoji, x, y, size) {
   context.fillText(emoji, x, y);
 }
 
-function drawTile(tile, sx, sy, tx, ty) {
+function drawTile(tile, sx, sy, tx, ty, theme) {
   const checker = (tx + ty) % 2 === 0;
   switch (tile) {
     case '#':
@@ -428,102 +614,201 @@ function drawTile(tile, sx, sy, tx, ty) {
       ctx.stroke();
       break;
     case 'C':
+    case 'K':
       ctx.fillStyle = checker ? '#5a4326' : '#63502f';
       ctx.fillRect(sx, sy, TILE, TILE);
       break;
+    case 'B':
+      ctx.fillStyle = checker ? '#6b5638' : '#71603f';
+      ctx.fillRect(sx, sy, TILE, TILE);
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + TILE / 2);
+      ctx.lineTo(sx + TILE, sy + TILE / 2);
+      ctx.stroke();
+      break;
+    case 'J':
+      ctx.fillStyle = checker ? '#152a19' : '#1a331e';
+      ctx.fillRect(sx, sy, TILE, TILE);
+      break;
     default:
-      ctx.fillStyle = checker ? '#3a2f22' : '#40352a';
+      if (theme === 'pier') {
+        ctx.fillStyle = checker ? '#5a4a35' : '#63523c';
+      } else {
+        ctx.fillStyle = checker ? '#3a2f22' : '#40352a';
+      }
       ctx.fillRect(sx, sy, TILE, TILE);
   }
+
   if (tile === 'T') drawEmoji(ctx, '🌴', sx + TILE / 2, sy + TILE / 2 + 3, 32);
   if (tile === 'R') drawEmoji(ctx, '🪨', sx + TILE / 2, sy + TILE / 2 + 3, 24);
   if (tile === 'C') drawEmoji(ctx, '⛺', sx + TILE / 2, sy + TILE / 2 + 2, 24);
-}
-
-function drawPlayer(px, py) {
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath();
-  ctx.ellipse(px + TILE / 2, py + TILE - 8, 12, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  const species = getSpecies(getActiveDino().speciesId);
-  drawEmoji(ctx, species.emoji, px + TILE / 2, py + TILE / 2, 28);
+  if (tile === 'J') drawEmoji(ctx, '🌳', sx + TILE / 2, sy + TILE / 2 + 4, 38);
+  if (tile === 'K') {
+    ctx.save();
+    ctx.filter = 'grayscale(0.4) brightness(0.85)';
+    drawEmoji(ctx, '🛖', sx + TILE / 2, sy + TILE / 2 + 1, 30);
+    ctx.restore();
+  }
+  if (tile === 'D') {
+    ctx.save();
+    ctx.filter = 'grayscale(0.85) brightness(0.65)';
+    ctx.translate(sx + TILE / 2, sy + TILE / 2 + 4);
+    ctx.rotate(Math.PI / 2);
+    ctx.font = '34px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🦕', 0, 0);
+    ctx.restore();
+  }
 }
 
 function drawMap(renderPos) {
-  if (!ctx || !state || state.team.length === 0) return;
+  if (!ctx || !state) return;
+  const zone = currentZone();
 
-  const camX = clamp(Math.round(renderPos.x - (VIEW_COLS - 1) / 2), 0, MAP_W - VIEW_COLS);
-  const camY = clamp(Math.round(renderPos.y - (VIEW_ROWS - 1) / 2), 0, MAP_H - VIEW_ROWS);
+  const camX = clamp(Math.round(renderPos.x - (VIEW_COLS - 1) / 2), 0, Math.max(0, zone.w - VIEW_COLS));
+  const camY = clamp(Math.round(renderPos.y - (VIEW_ROWS - 1) / 2), 0, Math.max(0, zone.h - VIEW_ROWS));
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (let ty = camY; ty < camY + VIEW_ROWS; ty++) {
     for (let tx = camX; tx < camX + VIEW_COLS; tx++) {
-      drawTile(tileAt(tx, ty), (tx - camX) * TILE, (ty - camY) * TILE, tx, ty);
+      drawTile(zone.rows[ty][tx], (tx - camX) * TILE, (ty - camY) * TILE, tx, ty, zone.theme);
     }
   }
 
-  drawPlayer((renderPos.x - camX) * TILE, (renderPos.y - camY) * TILE);
+  drawExplorer((renderPos.x - camX) * TILE, (renderPos.y - camY) * TILE);
+
+  if (zone.weather === 'rain') drawRain();
+}
+
+function drawRain() {
+  ctx.strokeStyle = 'rgba(190,205,225,0.4)';
+  ctx.lineWidth = 1.5;
+  rainDrops.forEach((d) => {
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(d.x - 3, d.y + d.len);
+    ctx.stroke();
+    d.y += d.speed;
+    d.x -= 0.8;
+    if (d.y > canvas.height) {
+      d.y = -10;
+      d.x = Math.random() * canvas.width;
+    }
+  });
+  ctx.fillStyle = 'rgba(50,70,100,0.10)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function startGameLoop() {
+  if (rafRunning) return;
+  rafRunning = true;
+  requestAnimationFrame(gameLoopTick);
+}
+
+function gameLoopTick(now) {
+  if (!rafRunning) return;
+  if (!isOverworldActive()) { rafRunning = false; return; }
+
+  let renderPos = state.pos;
+  if (anim) {
+    const t = Math.min(1, (now - anim.start) / anim.duration);
+    renderPos = {
+      x: anim.fromX + (anim.toX - anim.fromX) * t,
+      y: anim.fromY + (anim.toY - anim.fromY) * t,
+    };
+    if (t >= 1) {
+      state.pos.x = anim.toX;
+      state.pos.y = anim.toY;
+      anim = null;
+      moving = false;
+      saveGame();
+      onArriveTile();
+      renderPos = state.pos;
+    }
+  }
+
+  drawMap(renderPos);
+  requestAnimationFrame(gameLoopTick);
 }
 
 function onArriveTile() {
-  updateCampHint();
   const tile = tileAt(state.pos.x, state.pos.y);
-  if (tile === '#' && getFirstHealthyIndex() !== -1 && Math.random() < 0.13) {
+
+  if (tile === 'X') {
+    changeZone('island', ZONES.island.spawn);
+    toast("Vous quittez la plage et pénétrez sur l'île.");
+    return;
+  }
+
+  updateInteractHint();
+
+  const zone = currentZone();
+  if (tile === '#' && getFirstHealthyIndex() !== -1 && Math.random() < zone.encounterRate) {
     startEncounter();
   }
 }
 
-function animStep(now) {
-  if (!anim) return;
-  const t = Math.min(1, (now - anim.start) / anim.duration);
-  const renderPos = {
-    x: anim.fromX + (anim.toX - anim.fromX) * t,
-    y: anim.fromY + (anim.toY - anim.fromY) * t,
-  };
-  drawMap(renderPos);
-  if (t < 1) {
-    requestAnimationFrame(animStep);
-  } else {
-    state.pos.x = anim.toX;
-    state.pos.y = anim.toY;
-    anim = null;
-    moving = false;
-    saveGame();
-    onArriveTile();
-    if (isOverworldActive()) drawMap(state.pos);
-  }
+function changeZone(zoneId, spawn) {
+  state.zoneId = zoneId;
+  state.pos = { x: spawn.x, y: spawn.y };
+  saveGame();
+  updateInteractHint();
+}
+
+function animStep() {
+  // conservé pour compatibilité, le rendu est géré par gameLoopTick
 }
 
 function attemptMove(dx, dy) {
   if (moving || !state || !isOverworldActive()) return;
   const nx = state.pos.x + dx;
   const ny = state.pos.y + dy;
+
+  if (dx < 0) facingFlip = true;
+  else if (dx > 0) facingFlip = false;
+  if (dy < 0) facingUp = true;
+  else if (dy > 0) facingUp = false;
+
   if (!isWalkable(nx, ny)) return;
   moving = true;
+  walkFrame = 1 - walkFrame;
   anim = { fromX: state.pos.x, fromY: state.pos.y, toX: nx, toY: ny, start: performance.now(), duration: 130 };
-  requestAnimationFrame(animStep);
+  startGameLoop();
 }
 
-function tryEnterCamp() {
+function tryInteract() {
   if (!isOverworldActive()) return;
-  if (tileAt(state.pos.x, state.pos.y) !== 'C') return;
-  renderCampScreen();
-  showScreen('screen-camp');
+  const tile = tileAt(state.pos.x, state.pos.y);
+  if (tile === 'C') {
+    renderCampScreen();
+    showScreen('screen-camp');
+  } else if (tile === 'K') {
+    if (state.cabinVisited) {
+      toast('Il ne reste plus rien dans la cabane.');
+    } else {
+      renderEggScreen();
+      showScreen('screen-eggs');
+    }
+  }
 }
 
 /* =========================================================
    RENCONTRE ALÉATOIRE
    ========================================================= */
 
-function weightedRandomSpecies() {
-  const weights = SPECIES.map((s) => 1 / s.rarity);
+function weightedRandomSpecies(pool) {
+  const list = pool ? pool.map((id) => getSpecies(id)) : SPECIES;
+  const weights = list.map((s) => 1 / s.rarity);
   const total = weights.reduce((a, b) => a + b, 0);
   let roll = Math.random() * total;
-  for (let i = 0; i < SPECIES.length; i++) {
+  for (let i = 0; i < list.length; i++) {
     roll -= weights[i];
-    if (roll <= 0) return SPECIES[i];
+    if (roll <= 0) return list[i];
   }
-  return SPECIES[0];
+  return list[0];
 }
 
 function startEncounter() {
@@ -531,7 +816,8 @@ function startEncounter() {
   if (activeIdx === -1) return;
   state.activeIndex = activeIdx;
 
-  const species = weightedRandomSpecies();
+  const zone = currentZone();
+  const species = weightedRandomSpecies(zone.encounterSpecies);
   const level = clamp(state.explorationLevel + randInt(-1, 1), 1, 30);
   const wildDino = createDino(species.id, level);
 
@@ -554,23 +840,48 @@ function startEncounter() {
 function logBattle(message) {
   battle.log.push(message);
   const box = document.getElementById('battle-log');
-  const p = document.createElement('p');
-  p.textContent = message;
-  box.appendChild(p);
-  box.scrollTop = box.scrollHeight;
+  box.innerHTML = '';
+  battle.log.slice(-3).forEach((line) => {
+    const p = document.createElement('p');
+    p.textContent = line;
+    box.appendChild(p);
+  });
+}
+
+function renderPlate(elId, dino, { showNumeric }) {
+  const species = getSpecies(dino.speciesId);
+  const barClass = hpBarClass(dino.hp, dino.maxHp);
+  const hpRatio = clamp((dino.hp / dino.maxHp) * 100, 0, 100);
+  document.getElementById(elId).innerHTML = `
+    <div class="plate-name-row">
+      <span class="plate-name">${species.name}</span>
+      <span class="plate-level">N.${dino.level}</span>
+    </div>
+    <div class="hp-bar-track"><div class="hp-bar-fill ${barClass}" style="width:${hpRatio}%"></div></div>
+    ${showNumeric ? `<div class="plate-hp-text">${Math.max(0, dino.hp)}/${dino.maxHp} PV</div>` : ''}
+  `;
 }
 
 function renderBattle() {
-  const wildPanel = document.getElementById('wild-dino-panel');
-  wildPanel.innerHTML = '';
-  wildPanel.appendChild(buildDinoCard(battle.wildDino, { showStats: false }));
+  const wild = battle.wildDino;
+  const player = state.team[battle.playerIndex];
 
-  const playerPanel = document.getElementById('player-dino-panel');
-  playerPanel.innerHTML = '';
-  playerPanel.appendChild(buildDinoCard(state.team[battle.playerIndex], { showStats: false }));
+  document.getElementById('wild-sprite').textContent = getSpecies(wild.speciesId).emoji;
+  document.getElementById('player-sprite').textContent = getSpecies(player.speciesId).emoji;
+
+  renderPlate('wild-plate', wild, { showNumeric: false });
+  renderPlate('player-plate', player, { showNumeric: true });
 
   showBattleMainMenu();
   updateBattleButtonsAvailability();
+}
+
+function flashSprite(elId) {
+  const el = document.getElementById(elId);
+  el.classList.remove('hit');
+  // force reflow pour rejouer l'animation
+  void el.offsetWidth;
+  el.classList.add('hit');
 }
 
 function updateBattleButtonsAvailability() {
@@ -657,12 +968,13 @@ function playerAttack(move) {
   wild.hp = Math.max(0, wild.hp - damage);
   logBattle(`${getSpecies(player.speciesId).name} utilise ${move.name} ! (${damage} dégâts${multiplier > 1 ? ', super efficace !' : multiplier < 1 ? ', peu efficace...' : ''})`);
   renderBattle();
+  flashSprite('wild-sprite');
 
   if (wild.hp <= 0) {
     winBattle();
     return;
   }
-  wildTurn();
+  setTimeout(wildTurn, 500);
 }
 
 function wildTurn() {
@@ -679,6 +991,7 @@ function wildTurn() {
   player.hp = Math.max(0, player.hp - damage);
   logBattle(`${species.name} utilise ${move.name} ! (${damage} dégâts${multiplier > 1 ? ', super efficace !' : multiplier < 1 ? ', peu efficace...' : ''})`);
   renderBattle();
+  flashSprite('player-sprite');
 
   if (player.hp <= 0) {
     logBattle(`${getSpecies(player.speciesId).name} est K.O. !`);
@@ -737,20 +1050,17 @@ function showBattleEndMenu() {
 
   const back = document.createElement('button');
   back.className = 'btn btn-action';
-  back.textContent = 'Continuer l\'exploration';
+  back.textContent = "Continuer l'exploration";
   back.addEventListener('click', () => {
     battle = null;
     if (getFirstHealthyIndex() === -1) {
-      state.pos = { x: SPAWN.x, y: SPAWN.y };
+      const zone = currentZone();
+      state.pos = { x: zone.spawn.x, y: zone.spawn.y };
       saveGame();
-      toast('Toute votre équipe est épuisée. Retour au camp...');
-      renderCampScreen();
-      showScreen('screen-camp');
+      toast('Toute votre équipe est épuisée. Retour au point de départ...');
+      enterOverworldView();
     } else {
-      updateHud();
-      showScreen('screen-overworld');
-      updateCampHint();
-      drawMap(state.pos);
+      enterOverworldView();
     }
   });
   container.appendChild(back);
@@ -764,8 +1074,8 @@ function attemptRun() {
     saveGame();
     showBattleEndMenu();
   } else {
-    logBattle("Impossible de fuir !");
-    wildTurn();
+    logBattle('Impossible de fuir !');
+    setTimeout(wildTurn, 400);
   }
 }
 
@@ -795,10 +1105,10 @@ function attemptCapture() {
     renderBattle();
     showBattleEndMenu();
   } else {
-    logBattle("Le dinosaure résiste à la fléchette !");
+    logBattle('Le dinosaure résiste à la fléchette !');
     saveGame();
     renderBattle();
-    wildTurn();
+    setTimeout(wildTurn, 400);
   }
 }
 
@@ -858,9 +1168,7 @@ function renderTeamScreen() {
 function leaveTeamScreen() {
   showScreen(teamReturnTarget);
   if (teamReturnTarget === 'screen-overworld') {
-    updateHud();
-    updateCampHint();
-    drawMap(state.pos);
+    enterOverworldView();
   } else {
     renderCampScreen();
   }
@@ -891,14 +1199,9 @@ function initEventListeners() {
   });
   document.getElementById('btn-team-back').addEventListener('click', leaveTeamScreen);
 
-  document.getElementById('btn-enter-camp').addEventListener('click', tryEnterCamp);
+  document.getElementById('btn-interact').addEventListener('click', tryInteract);
   document.getElementById('btn-heal').addEventListener('click', healTeam);
-  document.getElementById('btn-leave-camp').addEventListener('click', () => {
-    showScreen('screen-overworld');
-    updateHud();
-    updateCampHint();
-    drawMap(state.pos);
-  });
+  document.getElementById('btn-leave-camp').addEventListener('click', enterOverworldView);
 
   document.getElementById('btn-reset-game').addEventListener('click', () => {
     if (!confirm('Réinitialiser toute la progression ? Cette action est irréversible.')) return;
@@ -923,7 +1226,7 @@ function initEventListeners() {
     if (!isOverworldActive()) return;
     if (e.key === 'e' || e.key === 'E') {
       e.preventDefault();
-      tryEnterCamp();
+      tryInteract();
       return;
     }
     const dir = MOVE_KEYS[e.key];

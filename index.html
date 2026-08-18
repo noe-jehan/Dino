@@ -20,11 +20,22 @@
       </div>
     </section>
 
-    <!-- ÉCRAN CHOIX DU STARTER -->
-    <section id="screen-starter" class="screen">
-      <h2>Choisissez votre premier dinosaure</h2>
-      <p class="subtitle">Ce compagnon vous accompagnera dès votre arrivée sur l'île.</p>
-      <div id="starter-list" class="card-grid"></div>
+    <!-- ÉCRAN INTRODUCTION -->
+    <section id="screen-intro" class="screen">
+      <div class="title-card intro-card">
+        <p class="eyebrow">Isla Nublar · Jour 1</p>
+        <h2 class="intro-heading">L'embarcadère</h2>
+        <p class="tagline">La pluie tombe sur la coque du bateau. Le capitaine ne s'attarde pas :<br>« Je reviens dans une semaine. Trouvez de quoi survivre. »<br>Vous posez le pied sur le ponton, seule.</p>
+        <button id="btn-start-intro" class="btn btn-primary">Débarquer</button>
+      </div>
+    </section>
+
+    <!-- ÉCRAN ŒUFS (CABANE) -->
+    <section id="screen-eggs" class="screen">
+      <p class="eyebrow">Cabane du garde forestier</p>
+      <h2>Trois œufs, abandonnés</h2>
+      <p class="subtitle">La nichée d'un garde disparu depuis longtemps repose encore au chaud sous des bâches. Un seul œuf tiendra le voyage avec vous.</p>
+      <div id="egg-list" class="card-grid"></div>
     </section>
 
     <!-- ÉCRAN MONDE OUVERT -->
@@ -38,8 +49,8 @@
       <div class="map-wrap">
         <canvas id="game-canvas"></canvas>
         <div id="toast" class="toast" hidden></div>
-        <div id="camp-hint" class="camp-hint" hidden>
-          <button id="btn-enter-camp" class="btn btn-primary btn-small">⛺ Installer le camp (E)</button>
+        <div id="interact-hint" class="camp-hint" hidden>
+          <button id="btn-interact" class="btn btn-primary btn-small"></button>
         </div>
       </div>
 
@@ -77,22 +88,28 @@
 
     <!-- ÉCRAN COMBAT -->
     <section id="screen-battle" class="screen">
-      <div class="battlefield">
-        <div id="wild-dino-panel" class="combatant combatant-wild"></div>
-        <div id="player-dino-panel" class="combatant combatant-player"></div>
+      <div class="battle-stage">
+        <div class="battle-platform battle-platform-wild"></div>
+        <div class="battle-platform battle-platform-player"></div>
+        <div id="wild-sprite" class="battle-sprite battle-sprite-wild"></div>
+        <div id="player-sprite" class="battle-sprite battle-sprite-player"></div>
+        <div id="wild-plate" class="battle-plate battle-plate-wild"></div>
+        <div id="player-plate" class="battle-plate battle-plate-player"></div>
       </div>
 
-      <div id="battle-log" class="log-box battle-log"></div>
+      <div class="battle-textbox">
+        <div id="battle-log" class="battle-log"></div>
 
-      <div id="battle-menu" class="battle-menu">
-        <div id="battle-main-actions" class="battle-actions">
-          <button id="btn-fight" class="btn btn-action">⚔️ Attaquer</button>
-          <button id="btn-tranq" class="btn btn-action">💉 Fléchette</button>
-          <button id="btn-switch" class="btn btn-action">🔁 Changer</button>
-          <button id="btn-run" class="btn btn-action">🏃 Fuir</button>
+        <div id="battle-menu" class="battle-menu">
+          <div id="battle-main-actions" class="battle-menu-grid">
+            <button id="btn-fight" class="btn btn-action">⚔️ Attaquer</button>
+            <button id="btn-tranq" class="btn btn-action">💉 Fléchette</button>
+            <button id="btn-switch" class="btn btn-action">🔁 Changer</button>
+            <button id="btn-run" class="btn btn-action">🏃 Fuir</button>
+          </div>
+          <div id="battle-move-actions" class="battle-menu-grid" hidden></div>
+          <div id="battle-switch-actions" class="battle-menu-grid" hidden></div>
         </div>
-        <div id="battle-move-actions" class="battle-actions" hidden></div>
-        <div id="battle-switch-actions" class="battle-actions" hidden></div>
       </div>
     </section>
 
