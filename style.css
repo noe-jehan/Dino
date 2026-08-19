@@ -431,3 +431,27 @@ h1, h2, h3 { font-family: 'Georgia', serif; margin: 0 0 8px; }
 .dpad-left { grid-column: 1; grid-row: 2; }
 .dpad-down { grid-column: 2; grid-row: 2; }
 .dpad-right { grid-column: 3; grid-row: 2; }
+
+/* ---------- Confirmation modale (remplace window.confirm) ---------- */
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 12, 8, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+.confirm-modal[hidden] { display: none; }
+.confirm-box {
+  max-width: 380px;
+  text-align: center;
+  border: 2px solid var(--amber);
+  border-radius: 16px;
+  padding: 28px 24px;
+  background: var(--jungle-900);
+  box-shadow: 0 0 40px rgba(240, 165, 0, 0.15) inset, 0 20px 40px rgba(0,0,0,0.4);
+}
+.confirm-box p { margin: 0 0 20px; line-height: 1.4; }
+.confirm-actions { display: flex; gap: 12px; justify-content: center; }

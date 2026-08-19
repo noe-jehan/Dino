@@ -305,11 +305,20 @@ function defaultState() {
 }
 
 function saveGame() {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  } catch {
+    // stockage indisponible (ex: iframe sandboxée) — la partie continue simplement sans sauvegarde persistante.
+  }
 }
 
 function loadGame() {
-  const raw = localStorage.getItem(SAVE_KEY);
+  let raw = null;
+  try {
+    raw = localStorage.getItem(SAVE_KEY);
+  } catch {
+    return null;
+  }
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
@@ -359,6 +368,29 @@ function toast(message) {
   toastTimer = setTimeout(() => { el.hidden = true; }, 2800);
 }
 
+// Remplace window.confirm(), qui peut être bloqué (silencieusement ou par exception)
+// dans un iframe sandboxé sans "allow-modals" — cas de l'aperçu d'artifact.
+function showConfirm(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirm-modal');
+    document.getElementById('confirm-message').textContent = message;
+    modal.hidden = false;
+
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
+    const settle = (result) => {
+      modal.hidden = true;
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    };
+    const onOk = () => settle(true);
+    const onCancel = () => settle(false);
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
 /* =========================================================
    RENDU : CARTES DE DINOSAURES
    ========================================================= */
@@ -402,8 +434,8 @@ function resetMovementState() {
 function initTitleScreen() {
   refreshContinueButton();
 
-  document.getElementById('btn-new-game').addEventListener('click', () => {
-    if (loadGame() && !confirm("Une expédition est déjà en cours. La remplacer par une nouvelle ?")) return;
+  document.getElementById('btn-new-game').addEventListener('click', async () => {
+    if (loadGame() && !(await showConfirm("Une expédition est déjà en cours. La remplacer par une nouvelle ?"))) return;
     resetMovementState();
     state = defaultState();
     showScreen('screen-intro');
@@ -1747,8 +1779,8 @@ function initEventListeners() {
   document.getElementById('btn-heal').addEventListener('click', healTeam);
   document.getElementById('btn-leave-camp').addEventListener('click', enterOverworldView);
 
-  document.getElementById('btn-reset-game').addEventListener('click', () => {
-    if (!confirm('Réinitialiser toute la progression ? Cette action est irréversible.')) return;
+  document.getElementById('btn-reset-game').addEventListener('click', async () => {
+    if (!(await showConfirm('Réinitialiser toute la progression ? Cette action est irréversible.'))) return;
     localStorage.removeItem(SAVE_KEY);
     state = null;
     battle = null;
