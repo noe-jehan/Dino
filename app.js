@@ -379,8 +379,7 @@ function refreshContinueButton() {
 function resetMovementState() {
   moving = false;
   anim = null;
-  facingFlip = false;
-  facingUp = false;
+  facingDir = 'down';
   walkFrame = 0;
 }
 
@@ -450,9 +449,48 @@ let moving = false;
 let anim = null;
 let rafRunning = false;
 let rainDrops = [];
-let facingFlip = false; // true = regarde vers la gauche
-let facingUp = false;
+let facingDir = 'down'; // 'down' | 'up' | 'left' | 'right'
 let walkFrame = 0;
+let assetsLoaded = false;
+
+const TILE_SRC = {
+  grass: 'assets/tiles/ground_grass.png',
+  sand: 'assets/tiles/ground_sand.png',
+  tallGrass: 'assets/tiles/tall_grass.png',
+  water: 'assets/tiles/water.png',
+  treePalm: 'assets/tiles/tree_palm.png',
+  treeBush: 'assets/tiles/tree_bush.png',
+  rock: 'assets/tiles/rock.png',
+  dock: 'assets/tiles/dock_plank.png',
+};
+const CHAR_SRC = {
+  down: ['assets/character/down_0.png', 'assets/character/down_1.png', 'assets/character/down_2.png'],
+  up: ['assets/character/up_0.png', 'assets/character/up_1.png', 'assets/character/up_2.png'],
+  side: ['assets/character/side_0.png', 'assets/character/side_1.png', 'assets/character/side_2.png'],
+};
+const TILE_IMAGES = {};
+const CHAR_IMAGES = { down: [], up: [], side: [] };
+
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+async function loadAssets() {
+  const tileEntries = Object.entries(TILE_SRC);
+  await Promise.all(tileEntries.map(async ([key, src]) => {
+    TILE_IMAGES[key] = await loadImage(src);
+  }));
+  await Promise.all(Object.entries(CHAR_SRC).map(async ([dir, list]) => {
+    CHAR_IMAGES[dir] = await Promise.all(list.map(loadImage));
+  }));
+  assetsLoaded = true;
+  if (state) drawMap(state.pos);
+}
 
 function initOverworld() {
   canvas = document.getElementById('game-canvas');
@@ -534,20 +572,23 @@ function enterOverworld() {
 /* ---------- Pixel art : palette et outils ---------- */
 
 const PAL = {
-  grassA: '#3a7a42', grassB: '#4a8a4f', grassC: '#245229', grassD: '#5f9a56',
-  dirtA: '#4a3c2a', dirtB: '#5a4a34', dirtC: '#332818',
-  sandA: '#8a774f', sandB: '#9c8862', sandC: '#6b5a3e',
-  waterA: '#1f5068', waterB: '#3a7fa0', waterC: '#8fc8dd',
-  wallGreenA: '#16321c', wallGreenB: '#1e4224', wallGreenC: '#0e2013',
-  trunkA: '#5a3d22', trunkB: '#402c18',
-  canopyA: '#2c6b34', canopyB: '#3d8a45', canopyC: '#1c4620',
-  rockA: '#9aa1a9', rockB: '#767e86', rockC: '#565c63',
+  grassA: '#2f7a35', grassB: '#3d8f3e', grassC: '#1f5522', grassD: '#4fa14a',
+  dirtA: '#c9975a', dirtB: '#d9ab72', dirtC: '#a97a42',
+  sandA: '#e8cf9c', sandB: '#f0dcb2', sandC: '#d4b880',
+  waterA: '#1b7fa3', waterB: '#2ea8c9', waterC: '#cdeef5',
+  wallGreenA: '#2a5c2e', wallGreenB: '#347538', wallGreenC: '#1c4020',
+  trunkA: '#6b4a28', trunkB: '#4a3218',
+  canopyA: '#3d8b3f', canopyB: '#52a84f', canopyC: '#276b2c',
+  rockA: '#a8a29a', rockB: '#847c72', rockC: '#5c564e', rockMoss: '#4a7a3e',
   tentA: '#d1652c', tentB: '#a84a1e', tentC: '#5c2c10',
   hutRoof: '#6b5338', hutRoofDark: '#40311f', hutWall: '#8a6b45', hutDoor: '#241a10', hutWindow: '#a9c9c4',
-  plankA: '#7a5c38', plankB: '#684d2e', plankLine: '#3f2c18',
+  plankA: '#8a6a3f', plankB: '#7a5a32', plankLine: '#4a3320', plankBolt: '#2a2016',
   bodyGray: '#697870', bodyGrayDark: '#495650', boneWhite: '#c9c2ac',
-  skin: '#f2c9a0', skinShade: '#dba97e', hair: '#e8c765', hairDark: '#c9a34f',
-  vest: '#e8853a', vestDark: '#b85f1f', pants: '#33405a', pantsDark: '#242e42', ink: '#241c14',
+  skin: '#f0c39a', skinShade: '#d9a878',
+  hair: '#8a1f24', hairMid: '#a52a2f', hairDark: '#5c1418', hairShine: '#c23a3a',
+  tank: '#232323', tankDark: '#121212',
+  cargo: '#4f5a35', cargoDark: '#3a4326', cargoLight: '#5f6c40',
+  boot: '#2a2018', ink: '#201810',
 };
 
 function tileHash(tx, ty, salt) {
@@ -606,6 +647,13 @@ function drawTallGrassTile(ox, oy, tx, ty) {
     blk(ox, oy, gx, baseY, 1.6, h, c);
     blk(ox, oy, gx + 1.8, baseY + 2, 1.2, h - 3, c);
   }
+  const hf = tileHash(tx, ty, 60);
+  if (hf % 3 === 0) {
+    const fx = 4 + (hf % 22), fy = 6 + ((hf >> 4) % 14);
+    const petal = (hf >> 8) % 2 === 0 ? '#f2ecd8' : '#c9453d';
+    tileBlob(ox, oy, fx, fy, 1.3, 1.3, petal);
+    tileBlob(ox, oy, fx + 0.2, fy + 0.2, 0.5, 0.5, PAL.dirtA);
+  }
 }
 
 let waveOffset = 0;
@@ -634,6 +682,9 @@ function drawDockTile(ox, oy, tx, ty) {
   const hh = tileHash(tx, ty, 40);
   blk(ox, oy, 2 + (hh % 6), 3, 9, 0.8, PAL.plankLine + '66');
   blk(ox, oy, 18 + (hh % 6), 14, 9, 0.8, PAL.plankLine + '66');
+  tileBlob(ox, oy, 4, 5, 1, 1, PAL.plankBolt);
+  tileBlob(ox, oy, 4, 16, 1, 1, PAL.plankBolt);
+  tileBlob(ox, oy, 4, 27, 1, 1, PAL.plankBolt);
 }
 
 /* ---------- Objets posés sur une tuile ---------- */
@@ -687,59 +738,104 @@ function drawCarcassObject(ox, oy) {
   blk(ox, oy, 12, 27, 3.5, 1.5, PAL.boneWhite + 'aa');
 }
 
+function drawImageTile(img, sx, sy, w = TILE, h = TILE, dx = 0, dy = 0) {
+  if (!img) return false;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, sx + dx, sy + dy, w, h);
+  return true;
+}
+
+function groundImageKey(theme) {
+  return theme === 'pier' ? 'sand' : 'grass';
+}
+
 function drawTile(tile, sx, sy, tx, ty, theme) {
   const [base, dark, light] = groundPalette(theme);
+  const groundImg = assetsLoaded ? TILE_IMAGES[groundImageKey(theme)] : null;
+  const drawGroundBase = () => {
+    if (!drawImageTile(groundImg, sx, sy)) drawGroundTile(sx, sy, tx, ty, base, dark, light);
+  };
+
   switch (tile) {
-    case '#':
-      drawTallGrassTile(sx, sy, tx, ty);
+    case '#': {
+      drawGroundBase();
+      const img = assetsLoaded ? TILE_IMAGES.tallGrass : null;
+      if (!drawImageTile(img, sx, sy)) drawTallGrassTile(sx, sy, tx, ty);
       break;
-    case '~':
-      drawWaterTile(sx, sy, tx, ty);
+    }
+    case '~': {
+      const img = assetsLoaded ? TILE_IMAGES.water : null;
+      if (!drawImageTile(img, sx, sy)) drawWaterTile(sx, sy, tx, ty);
       break;
-    case 'B':
-      drawDockTile(sx, sy, tx, ty);
+    }
+    case 'B': {
+      const img = assetsLoaded ? TILE_IMAGES.dock : null;
+      if (!drawImageTile(img, sx, sy)) drawDockTile(sx, sy, tx, ty);
       break;
+    }
     case 'C':
-      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawGroundBase();
       drawTentObject(sx, sy);
       break;
     case 'K':
-      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawGroundBase();
       drawCabinObject(sx, sy);
       break;
     case 'D':
-      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawGroundBase();
       drawCarcassObject(sx, sy);
       break;
-    case 'T':
-      drawGroundTile(sx, sy, tx, ty, base, dark, light);
-      drawTreeObject(sx, sy);
+    case 'T': {
+      drawGroundBase();
+      const hh = tileHash(tx, ty, 70);
+      const img = assetsLoaded ? (hh % 2 === 0 ? TILE_IMAGES.treePalm : TILE_IMAGES.treeBush) : null;
+      const w = TILE * 1.3, h = TILE * 1.5;
+      if (!drawImageTile(img, sx, sy, w, h, (TILE - w) / 2, TILE - h)) drawTreeObject(sx, sy);
       break;
-    case 'J':
-      drawGroundTile(sx, sy, tx, ty, PAL.wallGreenA, PAL.wallGreenC, PAL.wallGreenB);
-      drawTreeObject(sx - 9, sy + 5);
-      drawTreeObject(sx + 9, sy);
+    }
+    case 'J': {
+      drawGroundBase();
+      const hh1 = tileHash(tx, ty, 71);
+      const hh2 = tileHash(tx, ty, 72);
+      const img1 = assetsLoaded ? (hh1 % 2 === 0 ? TILE_IMAGES.treePalm : TILE_IMAGES.treeBush) : null;
+      const img2 = assetsLoaded ? (hh2 % 2 === 0 ? TILE_IMAGES.treePalm : TILE_IMAGES.treeBush) : null;
+      if (img1 && img2) {
+        const w = TILE * 1.15, h = TILE * 1.35;
+        drawImageTile(img2, sx, sy, w, h, TILE * 0.35, TILE - h * 0.9);
+        drawImageTile(img1, sx, sy, w, h, -TILE * 0.05, TILE - h);
+        ctx.fillStyle = 'rgba(10,30,10,0.28)';
+        ctx.fillRect(sx, sy, TILE, TILE);
+      } else {
+        drawGroundTile(sx, sy, tx, ty, PAL.wallGreenA, PAL.wallGreenC, PAL.wallGreenB);
+        drawTreeObject(sx - 9, sy + 5);
+        drawTreeObject(sx + 9, sy);
+      }
       break;
-    case 'R':
-      drawGroundTile(sx, sy, tx, ty, base, dark, light);
-      drawRockObject(sx, sy, tx, ty);
+    }
+    case 'R': {
+      drawGroundBase();
+      const img = assetsLoaded ? TILE_IMAGES.rock : null;
+      if (!drawImageTile(img, sx, sy)) drawRockObject(sx, sy, tx, ty);
       break;
+    }
     default:
-      drawGroundTile(sx, sy, tx, ty, base, dark, light);
+      drawGroundBase();
   }
 }
 
 /* ---------- Personnage ---------- */
 
-function drawExplorer(px, py) {
+function drawExplorerProcedural(px, py) {
   const spriteW = 32 * PXR;
   const spriteH = 40 * PXR;
   const ox = px + (TILE - spriteW) / 2;
   const oy = py + TILE - spriteH;
   const lift = walkFrame === 1 ? 2 : 0;
+  const flip = facingDir === 'left';
+  const up = facingDir === 'up';
 
   ctx.save();
-  if (facingFlip) {
+  if (flip) {
     ctx.translate(px * 2 + TILE, 0);
     ctx.scale(-1, 1);
   }
@@ -751,17 +847,17 @@ function drawExplorer(px, py) {
   ctx.fill();
 
   // jambes (alternance de marche)
-  blk(ox, oy, 10, 30 - (2 - lift), 6, 8 + (2 - lift), PAL.pants);
-  blk(ox, oy, 18, 30 - lift, 6, 8 + lift, PAL.pants);
-  blk(ox, oy, 10, 36, 6, 2, PAL.ink);
-  blk(ox, oy, 18, 36, 6, 2, PAL.ink);
+  blk(ox, oy, 10, 30 - (2 - lift), 6, 8 + (2 - lift), PAL.cargo);
+  blk(ox, oy, 18, 30 - lift, 6, 8 + lift, PAL.cargo);
+  blk(ox, oy, 10, 36, 6, 2, PAL.boot);
+  blk(ox, oy, 18, 36, 6, 2, PAL.boot);
 
-  // gilet de sauvetage
-  blk(ox, oy, 6, 16, 20, 14, PAL.vest);
-  blk(ox, oy, 6, 16, 20, 2, PAL.vestDark);
-  blk(ox, oy, 14, 16, 4, 14, PAL.vestDark);
-  blk(ox, oy, 8, 21, 3, 3, PAL.vestDark);
-  blk(ox, oy, 21, 21, 3, 3, PAL.vestDark);
+  // débardeur
+  blk(ox, oy, 6, 16, 20, 14, PAL.tank);
+  blk(ox, oy, 6, 16, 20, 2, PAL.tankDark);
+  blk(ox, oy, 14, 16, 4, 14, PAL.tankDark);
+  blk(ox, oy, 8, 21, 3, 3, PAL.cargoLight);
+  blk(ox, oy, 21, 21, 3, 3, PAL.cargoLight);
 
   // bras
   blk(ox, oy, 2, 18, 4, 12, PAL.skin);
@@ -769,7 +865,7 @@ function drawExplorer(px, py) {
   blk(ox, oy, 2, 28, 4, 2, PAL.skinShade);
   blk(ox, oy, 26, 28, 4, 2, PAL.skinShade);
 
-  if (facingUp) {
+  if (up) {
     // vu de dos : cheveux couvrent toute la tête
     tileBlob(ox, oy, 16, 5, 9.5, 8.5, PAL.hair);
     blk(ox, oy, 8, 11, 16, 3, PAL.hairDark);
@@ -781,7 +877,7 @@ function drawExplorer(px, py) {
     // yeux
     blk(ox, oy, 10, 8, 2.5, 2.5, PAL.ink);
     blk(ox, oy, 19.5, 8, 2.5, 2.5, PAL.ink);
-    // cheveux (carré blond avec frange)
+    // cheveux
     tileBlob(ox, oy, 16, 1, 10, 6.5, PAL.hair);
     blk(ox, oy, 5.5, 2, 3.5, 9, PAL.hair);
     blk(ox, oy, 23, 2, 3.5, 9, PAL.hair);
@@ -789,6 +885,38 @@ function drawExplorer(px, py) {
     blk(ox, oy, 20, 6, 4, 2, PAL.hairDark);
   }
 
+  ctx.restore();
+}
+
+function drawExplorer(px, py) {
+  // ombre
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(px + TILE / 2, py + TILE - PXR * 1.5, PXR * 7, PXR * 2.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const dirKey = facingDir === 'left' || facingDir === 'right' ? 'side' : facingDir;
+  const frame = walkFrame % 3;
+  const img = assetsLoaded ? CHAR_IMAGES[dirKey][frame] : null;
+  if (!img) {
+    drawExplorerProcedural(px, py);
+    return;
+  }
+
+  const targetH = TILE * 1.55;
+  const targetW = targetH * (img.naturalWidth / img.naturalHeight);
+  const dx = px + (TILE - targetW) / 2;
+  const dy = py + TILE - targetH;
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  if (facingDir === 'left') {
+    ctx.translate(dx + targetW, dy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+  } else {
+    ctx.drawImage(img, dx, dy, targetW, targetH);
+  }
   ctx.restore();
 }
 
@@ -904,14 +1032,14 @@ function attemptMove(dx, dy) {
   const nx = state.pos.x + dx;
   const ny = state.pos.y + dy;
 
-  if (dx < 0) facingFlip = true;
-  else if (dx > 0) facingFlip = false;
-  if (dy < 0) facingUp = true;
-  else if (dy > 0) facingUp = false;
+  if (dx < 0) facingDir = 'left';
+  else if (dx > 0) facingDir = 'right';
+  else if (dy < 0) facingDir = 'up';
+  else if (dy > 0) facingDir = 'down';
 
   if (!isWalkable(nx, ny)) return;
   moving = true;
-  walkFrame = 1 - walkFrame;
+  walkFrame = (walkFrame + 1) % 3;
   anim = { fromX: state.pos.x, fromY: state.pos.y, toX: nx, toY: ny, start: performance.now(), duration: 130 };
   startGameLoop();
 }
@@ -1630,4 +1758,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initBattleSprites();
   initTitleScreen();
   initEventListeners();
+  loadAssets();
 });
