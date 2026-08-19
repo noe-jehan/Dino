@@ -516,8 +516,17 @@ const CHAR_SRC = {
   up: ['assets/character/up_0.png', 'assets/character/up_1.png', 'assets/character/up_2.png'],
   side: ['assets/character/side_0.png', 'assets/character/side_1.png', 'assets/character/side_2.png'],
 };
+// Sprites de combat réels, par espèce. Les espèces absentes de cette table
+// gardent le rendu procédural (drawSpeciesSprite) comme repli.
+const CREATURE_SRC = {
+  velociraptor: 'assets/creatures/velociraptor.png',
+  triceratops: 'assets/creatures/triceratops.png',
+  pteranodon: 'assets/creatures/pteranodon.png',
+  quetzalcoatlus: 'assets/creatures/quetzalcoatlus.png',
+};
 const TILE_IMAGES = {};
 const CHAR_IMAGES = { down: [], up: [], side: [] };
+const CREATURE_IMAGES = {};
 
 function loadImage(src) {
   return new Promise((resolve) => {
@@ -536,8 +545,15 @@ async function loadAssets() {
   await Promise.all(Object.entries(CHAR_SRC).map(async ([dir, list]) => {
     CHAR_IMAGES[dir] = await Promise.all(list.map(loadImage));
   }));
+  await Promise.all(Object.entries(CREATURE_SRC).map(async ([key, src]) => {
+    CREATURE_IMAGES[key] = await loadImage(src);
+  }));
   assetsLoaded = true;
   if (state) drawMap(state.pos);
+  if (battle && wildCtx && playerCtx) {
+    drawSpeciesSprite(wildCtx, battle.wildDino.speciesId);
+    drawSpeciesSprite(playerCtx, state.team[battle.playerIndex].speciesId);
+  }
 }
 
 function initOverworld() {
@@ -1389,7 +1405,21 @@ function drawPterosaur(cctx, pal) {
 }
 
 function drawSpeciesSprite(cctx, speciesId) {
-  cctx.clearRect(0, 0, CW * PXR_C, CH * PXR_C);
+  const canvasW = CW * PXR_C;
+  const canvasH = CH * PXR_C;
+  cctx.clearRect(0, 0, canvasW, canvasH);
+
+  const img = assetsLoaded ? CREATURE_IMAGES[speciesId] : null;
+  if (img) {
+    const scale = Math.min(canvasW / img.naturalWidth, canvasH / img.naturalHeight);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    cctx.imageSmoothingEnabled = true;
+    cctx.imageSmoothingQuality = 'high';
+    cctx.drawImage(img, (canvasW - w) / 2, canvasH - h, w, h);
+    return;
+  }
+
   switch (speciesId) {
     case 'velociraptor':
       drawBiped(cctx, { base: CPAL.raptorBase, shade: CPAL.raptorShade, belly: CPAL.raptorBelly });
