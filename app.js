@@ -942,17 +942,26 @@ function drawMap(renderPos) {
   if (!ctx || !state) return;
   const zone = currentZone();
 
-  const camX = clamp(Math.round(renderPos.x - (VIEW_COLS - 1) / 2), 0, Math.max(0, zone.w - VIEW_COLS));
-  const camY = clamp(Math.round(renderPos.y - (VIEW_ROWS - 1) / 2), 0, Math.max(0, zone.h - VIEW_ROWS));
+  // Caméra en pixels continus (pas arrondie au tile) pour un scroll fluide pendant l'animation de pas.
+  const camX = clamp(renderPos.x - (VIEW_COLS - 1) / 2, 0, Math.max(0, zone.w - VIEW_COLS));
+  const camY = clamp(renderPos.y - (VIEW_ROWS - 1) / 2, 0, Math.max(0, zone.h - VIEW_ROWS));
+  const camPxX = camX * TILE;
+  const camPxY = camY * TILE;
+
+  // On dessine une bordure de tiles en plus (partiellement visibles) pour couvrir le décalage sous-pixel.
+  const startTx = clamp(Math.floor(camX), 0, zone.w - 1);
+  const endTx = clamp(Math.ceil(camX + VIEW_COLS), 0, zone.w);
+  const startTy = clamp(Math.floor(camY), 0, zone.h - 1);
+  const endTy = clamp(Math.ceil(camY + VIEW_ROWS), 0, zone.h);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let ty = camY; ty < camY + VIEW_ROWS; ty++) {
-    for (let tx = camX; tx < camX + VIEW_COLS; tx++) {
-      drawTile(zone.rows[ty][tx], (tx - camX) * TILE, (ty - camY) * TILE, tx, ty, zone.theme);
+  for (let ty = startTy; ty < endTy; ty++) {
+    for (let tx = startTx; tx < endTx; tx++) {
+      drawTile(zone.rows[ty][tx], tx * TILE - camPxX, ty * TILE - camPxY, tx, ty, zone.theme);
     }
   }
 
-  drawExplorer((renderPos.x - camX) * TILE, (renderPos.y - camY) * TILE);
+  drawExplorer(renderPos.x * TILE - camPxX, renderPos.y * TILE - camPxY);
 
   if (zone.weather === 'rain') drawRain();
 }
