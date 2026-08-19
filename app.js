@@ -181,6 +181,10 @@ function buildIslandMap() {
   const trees = [[13, 2], [14, 11], [8, 13], [21, 10], [12, 9]];
   trees.forEach(([x, y]) => { grid[y][x] = 'T'; });
 
+  // sentier sud : ramène vers la plage
+  grid[h - 1][12] = 'X';
+  grid[h - 1][13] = 'X';
+
   return { w, h, rows: grid.map((row) => row.join('')) };
 }
 
@@ -212,22 +216,34 @@ function buildPierMap() {
   return { w, h, rows: grid.map((row) => row.join('')) };
 }
 
+const ISLAND_SPAWN = { x: 5, y: 6 };
+const PIER_SPAWN = { x: 7, y: 8 }; // arrivée initiale, près du ponton
+const PIER_JUNGLE_ENTRY = { x: 7, y: 3 }; // retour depuis l'île, juste sous la lisière
+
 const ZONES = {
   island: {
     ...buildIslandMap(),
-    spawn: { x: 5, y: 6 },
+    spawn: ISLAND_SPAWN,
     weather: 'clear',
     encounterSpecies: null,
     encounterRate: 0.13,
     theme: 'island',
+    exits: {
+      '12,15': { zoneId: 'pier', spawn: PIER_JUNGLE_ENTRY, message: 'Vous redescendez vers la plage.' },
+      '13,15': { zoneId: 'pier', spawn: PIER_JUNGLE_ENTRY, message: 'Vous redescendez vers la plage.' },
+    },
   },
   pier: {
     ...buildPierMap(),
-    spawn: { x: 7, y: 8 },
+    spawn: PIER_SPAWN,
     weather: 'rain',
     encounterSpecies: ['compsognathus'],
     encounterRate: 0.16,
     theme: 'pier',
+    exits: {
+      '7,2': { zoneId: 'island', spawn: ISLAND_SPAWN, message: "Vous quittez la plage et pénétrez sur l'île." },
+      '8,2': { zoneId: 'island', spawn: ISLAND_SPAWN, message: "Vous quittez la plage et pénétrez sur l'île." },
+    },
   },
 };
 
@@ -740,7 +756,8 @@ function drawCarcassObject(ox, oy) {
 
 function drawImageTile(img, sx, sy, w = TILE, h = TILE, dx = 0, dy = 0) {
   if (!img) return false;
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, sx + dx, sy + dy, w, h);
   return true;
 }
@@ -909,7 +926,8 @@ function drawExplorer(px, py) {
   const dy = py + TILE - targetH;
 
   ctx.save();
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   if (facingDir === 'left') {
     ctx.translate(dx + targetW, dy);
     ctx.scale(-1, 1);
@@ -995,8 +1013,11 @@ function onArriveTile() {
   const tile = tileAt(state.pos.x, state.pos.y);
 
   if (tile === 'X') {
-    changeZone('island', ZONES.island.spawn);
-    toast("Vous quittez la plage et pénétrez sur l'île.");
+    const exit = currentZone().exits?.[`${state.pos.x},${state.pos.y}`];
+    if (exit) {
+      changeZone(exit.zoneId, exit.spawn);
+      toast(exit.message);
+    }
     return;
   }
 

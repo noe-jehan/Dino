@@ -367,7 +367,7 @@ h1, h2, h3 { font-family: 'Georgia', serif; margin: 0 0 8px; }
   display: block;
   width: 100%;
   height: auto;
-  image-rendering: -webkit-optimize-contrast;
+  image-rendering: auto;
 }
 
 .toast {
