@@ -88,6 +88,26 @@ h1, h2, h3 { font-family: 'Georgia', serif; margin: 0 0 8px; }
 .egg-emoji { font-size: 3rem; }
 .egg-card .dino-name { font-style: italic; }
 
+.eggs-scene {
+  margin: -24px -16px 0;
+  padding: 0;
+  min-height: calc(100vh - 36px);
+  background: url('assets/scenes/cabin_interior.png') center 30% / cover no-repeat, var(--jungle-950);
+}
+.eggs-scene-overlay {
+  min-height: inherit;
+  padding: 24px 16px 60px;
+  background: linear-gradient(180deg, rgba(11,26,18,0.15) 0%, rgba(11,26,18,0.55) 55%, rgba(11,26,18,0.92) 100%);
+}
+.eggs-scene .eyebrow, .eggs-scene h2, .eggs-scene .subtitle {
+  text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+}
+.eggs-scene .card-grid { margin-top: 32vh; }
+.eggs-scene .dino-card {
+  background: rgba(11, 26, 18, 0.72);
+  backdrop-filter: blur(2px);
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   border: none;

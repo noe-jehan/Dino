@@ -146,6 +146,7 @@ const TILE_INFO = {
   D: { walkable: false },
   K: { walkable: true, cabin: true },
   X: { walkable: true, exit: true },
+  S: { walkable: false },
 };
 
 function fillRect(grid, x0, y0, x1, y1, tile) {
@@ -209,9 +210,10 @@ function buildPierMap() {
   fillRect(grid, 7, 9, 8, 10, 'B'); // ponton
   fillRect(grid, 11, 4, 13, 6, '#'); // hautes herbes
   grid[6][4] = 'D'; // dinosaure mort
-  fillRect(grid, 2, 3, 3, 3, 'K'); // cabane du garde
+  grid[3][2] = 'K'; // cabane du garde
   grid[5][6] = 'R';
   grid[7][9] = 'R';
+  grid[11][7] = 'S'; // bateau amarré au ponton
 
   return { w, h, rows: grid.map((row) => row.join('')) };
 }
@@ -500,6 +502,7 @@ let rainDrops = [];
 let facingDir = 'down'; // 'down' | 'up' | 'left' | 'right'
 let walkFrame = 0;
 let assetsLoaded = false;
+let interactBubbleIcon = null;
 
 const TILE_SRC = {
   grass: 'assets/tiles/ground_grass.png',
@@ -524,9 +527,17 @@ const CREATURE_SRC = {
   pteranodon: 'assets/creatures/pteranodon.png',
   quetzalcoatlus: 'assets/creatures/quetzalcoatlus.png',
 };
+// Objets illustrés posés sur la carte (cabane, carcasse, bateau). Même principe
+// que CREATURE_SRC : repli sur le dessin procédural tant que l'image n'existe pas.
+const OBJECT_SRC = {
+  cabin: 'assets/objects/cabin.png',
+  carcass: 'assets/objects/carcass.png',
+  boat: 'assets/objects/boat.png',
+};
 const TILE_IMAGES = {};
 const CHAR_IMAGES = { down: [], up: [], side: [] };
 const CREATURE_IMAGES = {};
+const OBJECT_IMAGES = {};
 
 function loadImage(src) {
   return new Promise((resolve) => {
@@ -547,6 +558,9 @@ async function loadAssets() {
   }));
   await Promise.all(Object.entries(CREATURE_SRC).map(async ([key, src]) => {
     CREATURE_IMAGES[key] = await loadImage(src);
+  }));
+  await Promise.all(Object.entries(OBJECT_SRC).map(async ([key, src]) => {
+    OBJECT_IMAGES[key] = await loadImage(src);
   }));
   assetsLoaded = true;
   if (state) drawMap(state.pos);
@@ -614,11 +628,14 @@ function updateInteractHint() {
   if (tile === 'C') {
     hint.hidden = false;
     btn.textContent = '⛺ Installer le camp (E)';
+    interactBubbleIcon = '⛺';
   } else if (tile === 'K') {
     hint.hidden = false;
     btn.textContent = state.cabinVisited ? '🛖 Cabane vide (E)' : '🛖 Entrer dans la cabane (E)';
+    interactBubbleIcon = state.cabinVisited ? null : '🥚';
   } else {
     hint.hidden = true;
+    interactBubbleIcon = null;
   }
 }
 
@@ -842,14 +859,30 @@ function drawTile(tile, sx, sy, tx, ty, theme) {
       drawGroundBase();
       drawTentObject(sx, sy);
       break;
-    case 'K':
+    case 'K': {
       drawGroundBase();
-      drawCabinObject(sx, sy);
+      const img = assetsLoaded ? OBJECT_IMAGES.cabin : null;
+      const w = TILE * 1.7, h = TILE * 1.7;
+      if (!drawImageTile(img, sx, sy, w, h, (TILE - w) / 2, TILE - h)) drawCabinObject(sx, sy);
       break;
-    case 'D':
+    }
+    case 'D': {
       drawGroundBase();
-      drawCarcassObject(sx, sy);
+      const img = assetsLoaded ? OBJECT_IMAGES.carcass : null;
+      const w = TILE * 1.6, h = TILE * 1.1;
+      if (!drawImageTile(img, sx, sy, w, h, (TILE - w) / 2, TILE - h)) drawCarcassObject(sx, sy);
       break;
+    }
+    case 'S': {
+      const waterImg = assetsLoaded ? TILE_IMAGES.water : null;
+      if (!drawImageTile(waterImg, sx, sy)) drawWaterTile(sx, sy, tx, ty);
+      const img = assetsLoaded ? OBJECT_IMAGES.boat : null;
+      if (img) {
+        const w = TILE * 2.4, h = w / (img.naturalWidth / img.naturalHeight);
+        drawImageTile(img, sx, sy, w, h, (TILE - w) / 2, TILE - h);
+      }
+      break;
+    }
     case 'T': {
       drawGroundBase();
       const hh = tileHash(tx, ty, 70);
@@ -1009,9 +1042,44 @@ function drawMap(renderPos) {
     }
   }
 
-  drawExplorer(renderPos.x * TILE - camPxX, renderPos.y * TILE - camPxY);
+  const px = renderPos.x * TILE - camPxX;
+  const py = renderPos.y * TILE - camPxY;
+  drawExplorer(px, py);
+  if (interactBubbleIcon) drawInteractBubble(px, py, interactBubbleIcon);
 
   if (zone.weather === 'rain') drawRain();
+}
+
+// Bulle de dialogue flottante au-dessus du personnage, signalant une interaction possible.
+function drawInteractBubble(px, py, icon) {
+  const bw = 34, bh = 28;
+  const cx = px + TILE / 2;
+  const bob = Math.sin(performance.now() / 260) * 2;
+  const by = py - TILE * 0.95 + bob;
+  const bx = cx - bw / 2;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(16, 20, 12, 0.88)';
+  ctx.strokeStyle = '#f0a500';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 6, by + bh - 1);
+  ctx.lineTo(cx, by + bh + 8);
+  ctx.lineTo(cx + 6, by + bh - 1);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(16, 20, 12, 0.88)';
+  ctx.fill();
+
+  ctx.font = `${Math.round(bh * 0.62)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(icon, cx, by + bh / 2 + 1);
+  ctx.restore();
 }
 
 function drawRain() {
